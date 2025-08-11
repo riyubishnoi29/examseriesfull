@@ -1,17 +1,18 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
+require('dotenv').config();  // Load .env variables
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MySQL connection pool
+// MySQL connection pool using environment variables
 const pool = mysql.createPool({
-  host: 'localhost',   // apka DB host
-  user: 'root',        // apka mysql user
-  password: 'Riya@bis2929',        // apka mysql password
-  database: 'exam_app' // apka database name
+  host: process.env.DB_HOST,      // from .env
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME
 });
 
 // --- API Routes ---
@@ -76,5 +77,5 @@ app.get('/results/:userId', async (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
+  console.log(`API server running on port ${PORT}`);
 });
