@@ -73,9 +73,12 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.get("/", (req, res) => {
+  res.send("server is running");
+});
 
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`API server running on port ${PORT}`);
 });
