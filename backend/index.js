@@ -66,15 +66,44 @@ app.post('/results', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// Add new question (Only for admin with API key)
+app.post('/questions', async (req, res) => {
+  try {
+    // Check API key from request header
+    const apiKey = req.headers['x-api-key'];
+    if (apiKey !== process.env.ADMIN_KEY) {
+      return res.status(401).json({ error: "❌ Unauthorized: Invalid API key" });
+    }
 
-//question deletion k liye api
+    const { mock_id, question_text, options, correct_answer, marks } = req.body;
+
+    if (!mock_id || !question_text || !options || !correct_answer) {
+      return res.status(400).json({ error: "mock_id, question_text, options, correct_answer are required" });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO questions (mock_id, question_text, options, correct_answer, marks)
+       VALUES (?, ?, ?, ?, ?)`,
+      [mock_id, question_text, JSON.stringify(options), correct_answer, marks || 1]
+    );
+
+    res.json({ message: "✅ Question added successfully", id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// Secure delete question delete k liye h yeh api h 
 app.delete('/questions/:id', async (req, res) => {
   try {
+    const apiKey = req.headers['x-api-key'];
+    if (apiKey !== process.env.ADMIN_KEY) {
+      return res.status(401).json({ error: "❌ Unauthorized: Invalid API key" });
+    }
+
     const questionId = req.params.id;
-    const [result] = await pool.query(
-      'DELETE FROM questions WHERE id = ?',
-      [questionId]
-    );
+    const [result] = await pool.query('DELETE FROM questions WHERE id = ?', [questionId]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Question not found" });
@@ -85,6 +114,7 @@ app.delete('/questions/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Get results by user_id (optional)
 app.get('/results/:userId', async (req, res) => {
