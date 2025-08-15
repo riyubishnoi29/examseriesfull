@@ -6,19 +6,22 @@ require('dotenv').config();  // Load .env variables
 const app = express();
 app.use(cors());
 app.use(express.json());
-
+console.log("using hostname ", process.env.DB_HOST);
+console.log("using port ", process.env.DB_PORT);
 // MySQL connection pool using environment variables
 const pool = mysql.createPool({
   host: process.env.DB_HOST,      // from .env
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
-  ssl: { rejectUnauthorized: true }
+  port: process.env.DB_PORT,
+  //ssl: { rejectUnauthorized: true }
 });
 
 // --- API Routes ---
 
 // Get all exams
+
 app.get('/exams', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM exams');
@@ -77,9 +80,24 @@ app.get('/results/:userId', async (req, res) => {
 app.get("/", (req, res) => {
   res.send("server is running");
 });
+async function testDbConnection() {
+  try {
+    await pool.query('SELECT 1'); // simple query to ensure connection works
+    console.log('✅ Database connection successful');
+  } catch (err) {
+    console.error('❌ Database connection failed:', err.message);
+    process.exit(1); // stop app if DB isn't reachable
+  }
+}
+(async () => {
+  await testDbConnection();
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`API server running on port ${PORT}`);
+  });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`API server running on port ${PORT}`);
-});
+
+})();
+
+
+
