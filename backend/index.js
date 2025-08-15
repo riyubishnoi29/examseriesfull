@@ -67,6 +67,25 @@ app.post('/results', async (req, res) => {
   }
 });
 
+//question deletion k liye api
+app.delete('/questions/:id', async (req, res) => {
+  try {
+    const questionId = req.params.id;
+    const [result] = await pool.query(
+      'DELETE FROM questions WHERE id = ?',
+      [questionId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+
+    res.json({ message: "🗑️ Question deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get results by user_id (optional)
 app.get('/results/:userId', async (req, res) => {
   try {
@@ -76,29 +95,6 @@ app.get('/results/:userId', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-// Add new question
-app.post('/questions', async (req, res) => {
-  try {
-    const { mock_id, question_text, options, correct_answer, marks } = req.body;
-
-    if (!mock_id || !question_text || !options || !correct_answer) {
-      return res.status(400).json({ error: "mock_id, question_text, options, correct_answer are required" });
-    }
-
-    const [result] = await pool.query(
-      `INSERT INTO questions (mock_id, question_text, options, correct_answer, marks)
-       VALUES (?, ?, ?, ?, ?)`,
-      [mock_id, question_text, JSON.stringify(options), correct_answer, marks || 1]
-    );
-
-    res.json({ message: "✅ Question added successfully", id: result.insertId });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 app.get("/", (req, res) => {
