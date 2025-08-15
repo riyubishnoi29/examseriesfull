@@ -77,6 +77,30 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// Add new question
+app.post('/questions', async (req, res) => {
+  try {
+    const { mock_id, question_text, options, correct_answer, marks } = req.body;
+
+    if (!mock_id || !question_text || !options || !correct_answer) {
+      return res.status(400).json({ error: "mock_id, question_text, options, correct_answer are required" });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO questions (mock_id, question_text, options, correct_answer, marks)
+       VALUES (?, ?, ?, ?, ?)`,
+      [mock_id, question_text, JSON.stringify(options), correct_answer, marks || 1]
+    );
+
+    res.json({ message: "✅ Question added successfully", id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 app.get("/", (req, res) => {
   res.send("server is running");
 });
