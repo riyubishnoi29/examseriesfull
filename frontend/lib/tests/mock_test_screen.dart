@@ -1,6 +1,8 @@
+import 'package:examtrack/services/auth_screen.dart';
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
-import 'mock_questions_screen.dart';
+import 'package:examtrack/services/api_service.dart';
+
+import 'mock_questions_screen.dart'; // ✅ yeh tumhara questions screen
 
 class MockTestsScreen extends StatefulWidget {
   final int examId;
@@ -37,6 +39,33 @@ class _MockTestsScreenState extends State<MockTestsScreen> {
     }
   }
 
+  Future<void> handleStartTest(BuildContext context, mock) async {
+    final token = await ApiService.storage.read(key: "token");
+
+    if (token == null) {
+      // 👇 Full screen AuthScreen open
+      final loggedIn = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => AuthScreen()),
+      );
+
+      if (loggedIn != true) return; // user ne login cancel kar diya
+    }
+
+    // ✅ Ab user login hai → direct test screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => QuestionsScreen(
+              mockId: mock['id'],
+              mockName: mock['title'],
+              timeLimit: mock['duration_minutes'],
+            ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,10 +92,7 @@ class _MockTestsScreenState extends State<MockTestsScreen> {
                     elevation: 3,
                     margin: EdgeInsets.symmetric(vertical: 6),
                     child: ListTile(
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
+                      contentPadding: EdgeInsets.all(16),
                       leading: CircleAvatar(
                         radius: 25,
                         backgroundColor: Colors.black,
@@ -79,28 +105,35 @@ class _MockTestsScreenState extends State<MockTestsScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      subtitle: Text(
-                        "Duration: ${mock['duration_minutes']} min",
-                        style: TextStyle(color: Colors.grey[700]),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Duration: ${mock['duration_minutes']} min",
+                            style: TextStyle(color: Colors.grey[700]),
+                          ),
+                          SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              icon: Icon(Icons.play_arrow, color: Colors.white),
+                              label: Text("Start Test"),
+                              onPressed: () => handleStartTest(context, mock),
+                            ),
+                          ),
+                        ],
                       ),
                       trailing: Icon(
                         Icons.arrow_forward_ios,
                         size: 18,
                         color: Colors.grey[600],
                       ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (_) => QuestionsScreen(
-                                  mockId: mock['id'],
-                                  mockName: mock['title'],
-                                  timeLimit: mock['duration_minutes'],
-                                ),
-                          ),
-                        );
-                      },
                     ),
                   );
                 },
