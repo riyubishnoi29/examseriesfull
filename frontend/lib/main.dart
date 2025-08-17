@@ -4,6 +4,7 @@ import 'package:examtrack/profile/profile_screen.dart';
 import 'package:examtrack/score/score_screen.dart';
 import 'package:examtrack/tests/test_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(MyApp());
@@ -27,13 +28,31 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  int? userId; // ✅ shared prefs se load hoga
 
-  final List<Widget> _pages = [
-    HomeScreen(),
-    TestScreen(),
-    ScoreScreen(),
-    ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      userId = prefs.getInt('userId'); // ✅ login ke baad saved userId le lo
+    });
+  }
+
+  List<Widget> get _pages {
+    return [
+      HomeScreen(),
+      TestScreen(),
+      userId != null
+          ? ScoreScreen() // ✅ yaha pass kar diya (userId: userId!)
+          : const Center(child: CircularProgressIndicator()),
+      ProfileScreen(),
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {

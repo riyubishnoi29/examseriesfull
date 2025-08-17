@@ -1,10 +1,11 @@
 import 'dart:convert';
+import 'package:examtrack/model/result_model.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
   static const baseUrl = "https://examseriesfull-2.onrender.com";
-  static const baseUrl2 = "https://examseriesfull-1.onrender.com";
+  //static const baseUrl2 = "https://examseriesfull-1.onrender.com";
   //"https://examseriesfull-1.onrender.com";
   //'http://localhost:3000'; // ya apke backend ka IP:Port
 
@@ -42,16 +43,6 @@ class ApiService {
     } else {
       throw Exception('Failed to load questions');
     }
-  }
-
-  // Save result
-  static Future<bool> saveResult(Map<String, dynamic> resultData) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/results'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(resultData),
-    );
-    return response.statusCode == 200;
   }
 
   // --- SIGNUP ---
@@ -110,5 +101,57 @@ class ApiService {
   // --- Logout ---
   static Future<void> logout() async {
     await storage.delete(key: "token");
+  }
+
+  // Save result
+  static Future<bool> saveResult(
+    int mockId,
+    int score,
+    int timeTakenMinutes,
+  ) async {
+    final token = await storage.read(key: "token");
+    if (token == null) return false;
+
+    // Decode token to get user id
+    final payload = jsonDecode(
+      ascii.decode(base64.decode(base64.normalize(token.split(".")[1]))),
+    );
+    final userId = payload['id'];
+
+    final Map<String, dynamic> resultData = {
+      "user_id": userId,
+      "mock_id": mockId,
+      "score": score,
+      "time_taken_minutes": timeTakenMinutes,
+    };
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/results'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(resultData),
+    );
+
+    return response.statusCode == 200;
+  }
+
+  // Get user results
+  static Future<List<ResultModel>> getUserResults() async {
+    final token = await storage.read(key: "token");
+    if (token == null) return [];
+
+    // Decode token to get user id
+    final payload = jsonDecode(
+      ascii.decode(base64.decode(base64.normalize(token.split(".")[1]))),
+    );
+    final userId = payload['id'];
+
+    final response = await http.get(Uri.parse("$baseUrl/results/$userId"));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((e) => ResultModel.fromJson(e)).toList();
+    } else {
+      throw Exception("Failed to load results");
+    }
   }
 }

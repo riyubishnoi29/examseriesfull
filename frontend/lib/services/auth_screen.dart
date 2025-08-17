@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:examtrack/services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthScreen extends StatefulWidget {
   @override
@@ -13,6 +14,12 @@ class _AuthScreenState extends State<AuthScreen> {
   final passController = TextEditingController();
   String? message;
 
+  /// 🔹 Save userId in SharedPreferences
+  Future<void> saveUserId(int userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt("userId", userId);
+  }
+
   void handleAuth() async {
     if (isLogin) {
       final res = await ApiService.login(
@@ -20,7 +27,9 @@ class _AuthScreenState extends State<AuthScreen> {
         passController.text.trim(),
       );
       setState(() => message = res["message"]);
-      if (res["success"] == true) {
+
+      if (res["success"] == true && res["user"]?["id"] != null) {
+        await saveUserId(res["user"]["id"]); // ✅ save userId
         Navigator.pop(context, true);
       }
     } else {
@@ -30,7 +39,9 @@ class _AuthScreenState extends State<AuthScreen> {
         passController.text.trim(),
       );
       setState(() => message = res["message"]);
-      if (res["success"] == true) {
+
+      if (res["success"] == true && res["user"]?["id"] != null) {
+        await saveUserId(res["user"]["id"]); // ✅ save userId
         Navigator.pop(context, true);
       }
     }
