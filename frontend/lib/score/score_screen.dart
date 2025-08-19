@@ -15,7 +15,8 @@ class _ScoreScreenState extends State<ScoreScreen> {
   @override
   void initState() {
     super.initState();
-    futureResults = ApiService.getUserResults();
+
+    futureResults = ApiService.getUserResults(); // ✅ userId ko pass karo
   }
 
   Color getBorderColor(int score, int total) {

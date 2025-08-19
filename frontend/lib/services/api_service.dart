@@ -5,9 +5,6 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   static const baseUrl = "https://examseriesfull-2.onrender.com";
-  //static const baseUrl2 = "https://examseriesfull-1.onrender.com";
-  //"https://examseriesfull-1.onrender.com";
-  //'http://localhost:3000'; // ya apke backend ka IP:Port
 
   static const storage = FlutterSecureStorage();
 
