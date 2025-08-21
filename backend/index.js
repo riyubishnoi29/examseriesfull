@@ -2,12 +2,14 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
 require('dotenv').config();  // Load .env variables
- 
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
-
+// --- Helper for JWT ---
+const signToken = (payload) =>
+  jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 const app = express();
+
 
 app.use(cors());
 app.use(express.json());
@@ -122,21 +124,44 @@ app.delete('/questions/:id', async (req, res) => {
   }
 });
 
-
-// Get results by user_id (optional)
+// Get results with mock test names
 app.get('/results/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
-    const [rows] = await pool.query('SELECT * FROM results WHERE user_id = ?', [userId]);
+    const [rows] = await pool.query(
+      `SELECT r.id, r.mock_id, r.score, r.time_taken_minutes, r.date_taken,
+              m.title AS title, m.total_marks
+       FROM results r
+       JOIN mock_tests m ON r.mock_id = m.id
+       WHERE r.user_id = ?
+       ORDER BY r.date_taken DESC`,
+      [userId]
+    );
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// --- Helper for JWT ---
-const signToken = (payload) =>
-  jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+// // Get results with mock test names
+// app.get('/results/:userId', async (req, res) => {
+//   try {
+//     const userId = req.params.userId;
+//     const [rows] = await pool.query(
+//       `SELECT r.id, r.mock_id, r.score, r.time_taken_minutes, r.date_taken,
+//               m.title AS mock_name, m.total_marks
+//        FROM results r
+//        JOIN mock_tests m ON r.mock_id = m.id
+//        WHERE r.user_id = ?
+//        ORDER BY r.date_taken DESC`,
+//       [userId]
+//     );
+//     res.json(rows);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
 // --- Middleware for protected routes ---
 const auth = (req, res, next) => {
