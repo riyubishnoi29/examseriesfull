@@ -269,9 +269,9 @@ async function testDbConnection() {
 (async () => {
   await testDbConnection();
   const PORT = process.env.PORT || 3000;
-  
 
   if (process.env.NODE_ENV === 'production') {
+    // HTTPS mode
     const httpsOptions = {
       key: fs.readFileSync('/etc/letsencrypt/live/rankyard.in/privkey.pem'),
       cert: fs.readFileSync('/etc/letsencrypt/live/rankyard.in/fullchain.pem')
@@ -284,12 +284,13 @@ async function testDbConnection() {
     http.createServer((req, res) => {
       res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
       res.end();
-    }).listen(80, () => {
+    }).listen(80, "0.0.0.0", () => {
       console.log('🌐 HTTP to HTTPS redirection enabled on port 80');
     });
   } else {
+    // Dev mode
     app.listen(PORT, "0.0.0.0", () => {
-      console.log(`🌐 Dev server running at http://localhost:${PORT}`);
+      console.log(`🌐 Dev server running at http://0.0.0.0:${PORT}`);
     });
   }
 })();
