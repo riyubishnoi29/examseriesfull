@@ -2,7 +2,9 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
 require('dotenv').config();  // Load .env variables
-
+const fs = require('fs');
+const https = require('https');
+const http = require('http');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 // --- Helper for JWT ---
@@ -249,11 +251,12 @@ app.get('/api/auth/profile', auth, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
-
+// root route
 app.get("/", (req, res) => {
   res.send("server is running");
 });
+
+//test db connection
 async function testDbConnection() {
   try {
     await pool.query('SELECT 1'); // simple query to ensure connection works
@@ -266,12 +269,27 @@ async function testDbConnection() {
 (async () => {
   await testDbConnection();
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`API server running on port ${PORT}`);
-  });
+  
 
+  if (process.env.NODE_ENV === 'production') {
+    const httpsOptions = {
+      key: fs.readFileSync('/etc/letsencrypt/live/rankyard.in/privkey.pem'),
+      cert: fs.readFileSync('/etc/letsencrypt/live/rankyard.in/fullchain.pem')
+    };
 
+    https.createServer(httpsOptions, app).listen(443, "0.0.0.0", () => {
+      console.log(`🚀 HTTPS Server running on port 443`);
+    });
+
+    http.createServer((req, res) => {
+      res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
+      res.end();
+    }).listen(80, () => {
+      console.log('🌐 HTTP to HTTPS redirection enabled on port 80');
+    });
+  } else {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🌐 Dev server running at http://localhost:${PORT}`);
+    });
+  }
 })();
-
-
-
