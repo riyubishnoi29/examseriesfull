@@ -7,12 +7,14 @@ const https = require('https');
 const http = require('http');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
+
 // --- Helper for JWT ---
 const signToken = (payload) =>
   jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 const app = express();
 
-
+app.use(express.static(path.join(__dirname)));
 app.use(cors());
 app.use(express.json());
 console.log("using hostname ", process.env.DB_HOST);
@@ -251,9 +253,10 @@ app.get('/api/auth/profile', auth, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-// root route
-app.get("/", (req, res) => {
-  res.send("server is running");
+
+// Serve the frontend
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
 });
 
 //test db connection
@@ -268,29 +271,32 @@ async function testDbConnection() {
 }
 (async () => {
   await testDbConnection();
-  const PORT = process.env.PORT || 3000;
+
+  const PORT = process.env.PORT || 80;     // HTTP redirect port
+  const HTTPS_PORT = process.env.HTTPS_PORT || 3443; // HTTPS port
 
   if (process.env.NODE_ENV === 'production') {
-    // HTTPS mode
     const httpsOptions = {
       key: fs.readFileSync('/etc/letsencrypt/live/rankyard.in/privkey.pem'),
       cert: fs.readFileSync('/etc/letsencrypt/live/rankyard.in/fullchain.pem')
     };
 
-    https.createServer(httpsOptions, app).listen(443, "0.0.0.0", () => {
-      console.log(`🚀 HTTPS Server running on port 443`);
+    // ✅ HTTPS server
+    https.createServer(httpsOptions, app).listen(HTTPS_PORT, "0.0.0.0", () => {
+      console.log(`🚀 HTTPS Server running on port ${HTTPS_PORT}`);
     });
 
+    // ✅ HTTP redirect to HTTPS
     http.createServer((req, res) => {
-      res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
+      const host = req.headers.host.split(':')[0]; // remove any port if exists
+      res.writeHead(301, { Location: `https://${host}:${HTTPS_PORT}${req.url}` });
       res.end();
-    }).listen(80, "0.0.0.0", () => {
-      console.log('🌐 HTTP to HTTPS redirection enabled on port 80');
+    }).listen(PORT, "0.0.0.0", () => {
+      console.log(`🌐 HTTP redirect enabled on port ${PORT}`);
     });
+
   } else {
-    // Dev mode
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`🌐 Dev server running at http://0.0.0.0:${PORT}`);
-    });
+    // Dev server
+    app.listen(PORT, () => console.log(`🌐 Dev server running on http://localhost:${PORT}`));
   }
 })();
