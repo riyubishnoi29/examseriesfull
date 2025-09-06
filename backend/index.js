@@ -32,6 +32,26 @@ const pool = mysql.createPool({
 
 // --- API Routes ---
 
+// --- Middleware to protect admin routes ---
+const adminAuth = async (req, res, next) => {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ success: false, message: 'No token provided' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.id;
+
+    const [rows] = await pool.query('SELECT role FROM users WHERE id = ?', [req.userId]);
+    if (!rows.length || rows[0].role !== 'admin') {
+      return res.status(403).json({ success: false, message: '❌ Access denied. Admins only' });
+    }
+
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
+  }
+};
 
 // Get all exams
 
@@ -79,15 +99,9 @@ app.post('/results', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// Add new question (Only for admin with API key)
-app.post('/questions', async (req, res) => {
+// Add new question (admin only)
+app.post('/questions', adminAuth, async (req, res) => {
   try {
-    // Check API key from request header
-    const apiKey = req.headers['x-api-key'];
-    if (apiKey !== process.env.ADMIN_KEY) {
-      return res.status(401).json({ error: "❌ Unauthorized: Invalid API key" });
-    }
-
     const { mock_id, question_text, options, correct_answer, marks } = req.body;
 
     if (!mock_id || !question_text || !options || !correct_answer) {
@@ -106,15 +120,9 @@ app.post('/questions', async (req, res) => {
   }
 });
 
-
-// Secure delete question delete k liye h yeh api h 
-app.delete('/questions/:id', async (req, res) => {
+// Delete question (Only for admin)
+app.delete('/questions/:id', adminAuth, async (req, res) => {
   try {
-    const apiKey = req.headers['x-api-key'];
-    if (apiKey !== process.env.ADMIN_KEY) {
-      return res.status(401).json({ error: "❌ Unauthorized: Invalid API key" });
-    }
-
     const questionId = req.params.id;
     const [result] = await pool.query('DELETE FROM questions WHERE id = ?', [questionId]);
 
@@ -148,25 +156,6 @@ app.get('/results/:userId', async (req, res) => {
 });
 
 
-// // Get results with mock test names
-// app.get('/results/:userId', async (req, res) => {
-//   try {
-//     const userId = req.params.userId;
-//     const [rows] = await pool.query(
-//       `SELECT r.id, r.mock_id, r.score, r.time_taken_minutes, r.date_taken,
-//               m.title AS mock_name, m.total_marks
-//        FROM results r
-//        JOIN mock_tests m ON r.mock_id = m.id
-//        WHERE r.user_id = ?
-//        ORDER BY r.date_taken DESC`,
-//       [userId]
-//     );
-//     res.json(rows);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// });
-
 // --- Middleware for protected routes ---
 const auth = (req, res, next) => {
   const header = req.headers.authorization || '';
@@ -181,7 +170,9 @@ const auth = (req, res, next) => {
   }
 };
 
-// --- SIGNUP ---
+
+// --- Auth Routes ---
+// SIGNUP
 app.post('/api/auth/signup', async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password)
@@ -195,11 +186,11 @@ app.post('/api/auth/signup', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
-      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-      [name, email, hash]
+      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+      [name, email, hash, 'user'] // default role user
     );
 
-    const user = { id: result.insertId, name, email };
+    const user = { id: result.insertId, name, email, role: 'user' };
     const token = signToken({ id: user.id });
 
     return res.status(201).json({ success: true, token, user });
@@ -209,7 +200,7 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
-// --- LOGIN ---
+// LOGIN ✅ role fix
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
@@ -217,7 +208,7 @@ app.post('/api/auth/login', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT id, name, email, password FROM users WHERE email = ?',
+      'SELECT id, name, email, password, role FROM users WHERE email = ?',
       [email]
     );
     if (!rows.length)
@@ -228,7 +219,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (!ok)
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
 
-    const user = { id: row.id, name: row.name, email: row.email };
+    const user = { id: row.id, name: row.name, email: row.email, role: row.role };
     const token = signToken({ id: user.id });
 
     return res.json({ success: true, token, user });
@@ -237,6 +228,7 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
 
 // --- PROFILE (protected) ---
 app.get('/api/auth/profile', auth, async (req, res) => {
@@ -257,6 +249,16 @@ app.get('/api/auth/profile', auth, async (req, res) => {
 // Serve the frontend
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
+});
+
+// Admin login page
+app.get('/admin/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login_admin.html'));
+});
+
+// Admin panel page
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 //test db connection

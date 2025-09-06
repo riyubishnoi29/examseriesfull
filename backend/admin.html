@@ -23,6 +23,14 @@
   </form>
 
   <script>
+    // 🔒 Check admin login on page load
+    const token = localStorage.getItem("adminToken"); // Token stored after login
+    if (!token) {
+      alert("❌ You are not authorized. Please login first.");
+      window.location.href = "login_admin.html"; // redirect to admin login page
+    }
+
+    // Handle question form submission
     document.getElementById("questionForm").addEventListener("submit", async (e) => {
       e.preventDefault();
 
@@ -40,14 +48,24 @@
         marks: parseInt(formData.get("marks"))
       };
 
-      const res = await fetch("https://examseriesfull-2.onrender.com/questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-      });
+      try {
+        // ✅ Send the token in Authorization header
+        const res = await fetch("https://rankyard.in/questions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` // <-- THIS IS THE CHANGE
+          },
+          body: JSON.stringify(data)
+        });
 
-      const result = await res.json();
-      alert(result.message || result.error);
+        const result = await res.json();
+        alert(result.message || result.error);
+
+      } catch (err) {
+        console.error(err);
+        alert("❌ Something went wrong. Try again.");
+      }
     });
   </script>
 </body>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Login</title>
+</head>
+<body>
+  <h2>Admin Login</h2>
+  <form id="adminLoginForm">
+    Email: <input type="email" name="email" required><br><br>
+    Password: <input type="password" name="password" required><br><br>
+    <button type="submit">Login</button>
+  </form>
+
+  <script>
+    document.getElementById("adminLoginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const email = formData.get("email");
+      const password = formData.get("password");
+
+      try {
+        const res = await fetch("https://rankyard.in/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          // Check if user is admin
+          if (data.user.role !== 'admin') {
+            alert("❌ Access denied. You are not an admin.");
+            return;
+          }
+
+          // Save token in localStorage
+          localStorage.setItem("adminToken", data.token);
+
+          alert("✅ Login successful! Redirecting to admin panel...");
+          window.location.href = "admin.html"; // redirect to admin panel
+        } else {
+          alert(data.message || "❌ Login failed");
+        }
+
+      } catch (err) {
+        console.error(err);
+        alert("❌ Something went wrong. Try again.");
+      }
+    });
+  </script>
+</body>
+</html>
