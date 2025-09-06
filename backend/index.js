@@ -253,7 +253,7 @@ app.get('/', (req, res) => {
 
 // Admin login page
 app.get('/admin/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'login_admin.html'));
+  res.sendFile(path.join(__dirname, 'admin_login.html'));
 });
 
 // Admin panel page
