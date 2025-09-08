@@ -1,154 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Panel</title>
+  <title>Add Question</title>
 </head>
 <body>
-  <h2>Admin Panel</h2>
+  <h2>Add New Question</h2>
+  <form id="questionForm">
+    Mock ID: <input type="number" name="mock_id" required><br><br>
 
-  <!-- Editor Section -->
-  <div id="editorSection" style="display:none;">
-    <h3>✍️ Create Mock Test (Editor)</h3>
-    <form id="mockTestForm">
-      Exam ID: <input type="number" name="exam_id" required><br><br>
-      Title: <input type="text" name="title" required><br><br>
-      Total Marks: <input type="number" name="total_marks" value="100"><br><br>
-      <button type="submit">Create Mock Test</button>
-    </form>
-  </div>
+    Question: <textarea name="question_text" required></textarea><br><br>
 
-  <!-- Publisher Section -->
-  <div id="publisherSection" style="display:none;">
-    <h3>📢 Manage Mock Tests (Publisher)</h3>
-    <button onclick="loadMockTests()">Load Mock Tests</button>
-    <div id="mockTestList"></div>
-  </div>
+    Option 1: <input type="text" name="option1" required><br>
+    Option 2: <input type="text" name="option2" required><br>
+    Option 3: <input type="text" name="option3" required><br>
+    Option 4: <input type="text" name="option4" required><br><br>
 
-  <!-- Admin Section -->
-  <div id="adminSection" style="display:none;">
-    <h3>📝 Add Question (Admin)</h3>
-    <form id="questionForm">
-      Mock ID: <input type="number" name="mock_id" required><br><br>
-      Question: <textarea name="question_text" required></textarea><br><br>
-      Option 1: <input type="text" name="option1" required><br>
-      Option 2: <input type="text" name="option2" required><br>
-      Option 3: <input type="text" name="option3" required><br>
-      Option 4: <input type="text" name="option4" required><br><br>
-      Correct Answer: <input type="text" name="correct_answer" required><br><br>
-      Marks: <input type="number" name="marks" value="1"><br><br>
-      <button type="submit">Add Question</button>
-    </form>
-  </div>
+    Correct Answer: <input type="text" name="correct_answer" required><br><br>
+
+    Marks: <input type="number" name="marks" value="1"><br><br>
+
+    <button type="submit">Add Question</button>
+  </form>
 
   <script>
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role");
-
-    if (!token || !role) {
-      alert("❌ Unauthorized! Please login first.");
-      window.location.href = "admin_login.html";
+    // 🔒 Check admin login on page load
+    const token = localStorage.getItem("adminToken"); // Token stored after login
+    if (!token) {
+      alert("❌ You are not authorized. Please login first.");
+      window.location.href = "login_admin.html"; // redirect to admin login page
     }
 
-    // Role-based UI
-    if (role === "editor") {
-      document.getElementById("editorSection").style.display = "block";
-    } else if (role === "publisher") {
-      document.getElementById("publisherSection").style.display = "block";
-    } else if (role === "admin") {
-      document.getElementById("editorSection").style.display = "block";
-      document.getElementById("publisherSection").style.display = "block";
-      document.getElementById("adminSection").style.display = "block";
-    }
+    // Handle question form submission
+    document.getElementById("questionForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-    // ✅ Create Mock Test (Editor/Admin)
-    const mockTestForm = document.getElementById("mockTestForm");
-    if (mockTestForm) {
-      mockTestForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const body = {
-          exam_id: parseInt(formData.get("exam_id")),
-          title: formData.get("title"),
-          total_marks: parseInt(formData.get("total_marks"))
-        };
+      const formData = new FormData(e.target);
+      const data = {
+        mock_id: parseInt(formData.get("mock_id")),
+        question_text: formData.get("question_text"),
+        options: [
+          formData.get("option1"),
+          formData.get("option2"),
+          formData.get("option3"),
+          formData.get("option4")
+        ],
+        correct_answer: formData.get("correct_answer"),
+        marks: parseInt(formData.get("marks"))
+      };
 
-        const res = await fetch("https://rankyard.in/mock_tests", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify(body)
-        });
-        const result = await res.json();
-        alert(result.message || result.error);
-      });
-    }
-
-    // ✅ Load Mock Tests for Publisher/Admin
-    async function loadMockTests() {
-      const res = await fetch("https://rankyard.in/exams/1/mock_tests"); // exam_id fix karna padega
-      const data = await res.json();
-      const list = document.getElementById("mockTestList");
-      list.innerHTML = "";
-
-      data.forEach(test => {
-        const div = document.createElement("div");
-        div.innerHTML = `
-          <b>${test.title}</b> (status: ${test.status})
-          <button onclick="updateStatus(${test.id}, 'pending')">Pending</button>
-          <button onclick="updateStatus(${test.id}, 'live')">Live</button>
-        `;
-        list.appendChild(div);
-      });
-    }
-
-    // ✅ Update Status (Publisher/Admin)
-    async function updateStatus(id, status) {
-      const res = await fetch(`https://rankyard.in/mock_tests/${id}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
-      const result = await res.json();
-      alert(result.message || result.error);
-      loadMockTests();
-    }
-
-    // ✅ Add Question (Admin)
-    const questionForm = document.getElementById("questionForm");
-    if (questionForm) {
-      questionForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const body = {
-          mock_id: parseInt(formData.get("mock_id")),
-          question_text: formData.get("question_text"),
-          options: [
-            formData.get("option1"),
-            formData.get("option2"),
-            formData.get("option3"),
-            formData.get("option4")
-          ],
-          correct_answer: formData.get("correct_answer"),
-          marks: parseInt(formData.get("marks"))
-        };
-
+      try {
+        // ✅ Send the token in Authorization header
         const res = await fetch("https://rankyard.in/questions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
+            "Authorization": `Bearer ${token}` // <-- THIS IS THE CHANGE
           },
-          body: JSON.stringify(body)
+          body: JSON.stringify(data)
         });
+
         const result = await res.json();
         alert(result.message || result.error);
-      });
-    }
+
+      } catch (err) {
+        console.error(err);
+        alert("❌ Something went wrong. Try again.");
+      }
+    });
   </script>
 </body>
 </html>
