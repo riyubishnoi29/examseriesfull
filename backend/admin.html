@@ -48,7 +48,7 @@
       document.getElementById("publishSection").style.display = "block";
     }
 
-    // Add question
+    // ✅ Add question
     document.getElementById("questionForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
@@ -65,31 +65,46 @@
         marks: parseInt(formData.get("marks"))
       };
 
-      const res = await fetch("https://rankyard.in/questions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-      });
+      try {
+        const res = await fetch("https://rankyard.in/questions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
 
-      const result = await res.json();
-      alert(result.message || result.error);
+        const result = await res.json();
+        alert(result.message || result.error || "✅ Question added successfully!");
+      } catch (err) {
+        alert("⚠️ Error: " + err.message);
+      }
     });
 
-    // Publish test
+    // ✅ Publish test
     async function publishTest() {
       const testId = document.getElementById("publishTestId").value;
       if (!testId) return alert("❌ Enter Test ID");
 
-      const res = await fetch(`https://rankyard.in/mock_tests/${testId}/publish`, {
-        method: "PUT",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+      try {
+        const res = await fetch(`https://rankyard.in/mock_tests/${testId}/publish`, {
+          method: "PATCH",   // 🔥 Fix here (was PUT earlier)
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          }
+        });
 
-      const result = await res.json();
-      alert(result.message || result.error);
+        const result = await res.json();
+        if (res.ok) {
+          alert(result.message || "✅ Test published successfully!");
+        } else {
+          alert("❌ Error: " + (result.message || "Something went wrong"));
+        }
+      } catch (err) {
+        alert("⚠️ Error: " + err.message);
+      }
     }
   </script>
 </body>
