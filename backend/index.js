@@ -33,24 +33,27 @@ const pool = mysql.createPool({
 // --- API Routes ---
 
 // --- Middleware to protect admin routes ---
-const adminAuth = async (req, res, next) => {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ success: false, message: 'No token provided' });
+const roleAuth = (allowedRoles) => {
+  return async (req, res, next) => {
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    if (!token)
+      return res.status(401).json({ success: false, message: 'No token provided' });
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.id;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.userId = decoded.id;
 
-    const [rows] = await pool.query('SELECT role FROM users WHERE id = ?', [req.userId]);
-    if (!rows.length || rows[0].role !== 'admin') {
-      return res.status(403).json({ success: false, message: '❌ Access denied. Admins only' });
+      const [rows] = await pool.query('SELECT role FROM users WHERE id = ?', [req.userId]);
+      if (!rows.length || !allowedRoles.includes(rows[0].role)) {
+        return res.status(403).json({ success: false, message: '❌ Access denied' });
+      }
+
+      next();
+    } catch {
+      return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
     }
-
-    next();
-  } catch {
-    return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
-  }
+  };
 };
 
 // Get all exams
@@ -63,6 +66,48 @@ app.get('/exams', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// Editor can create new mock test (draft)
+app.post('/mock_tests', roleAuth(['editor', 'admin']), async (req, res) => {
+  try {
+    const { exam_id, title, total_marks } = req.body;
+    if (!exam_id || !title)
+      return res.status(400).json({ error: "exam_id and title are required" });
+
+    const [result] = await pool.query(
+      `INSERT INTO mock_tests (exam_id, title, total_marks, status) VALUES (?, ?, ?, 'draft')`,
+      [exam_id, title, total_marks || 100]
+    );
+
+    res.json({ message: "📝 Mock test created (draft)", id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Publisher can change mock test status from draft → pending → live
+app.patch('/mock_tests/:id/status', roleAuth(['publisher', 'admin']), async (req, res) => {
+  try {
+    const mockId = req.params.id;
+    const { status } = req.body;
+
+    if (!['draft', 'pending', 'live'].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const [result] = await pool.query(
+      `UPDATE mock_tests SET status = ? WHERE id = ?`,
+      [status, mockId]
+    );
+
+    if (result.affectedRows === 0)
+      return res.status(404).json({ error: "Mock test not found" });
+
+    res.json({ message: `✅ Mock test status updated to ${status}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Get mock tests by exam_id
 app.get('/exams/:examId/mock_tests', async (req, res) => {
@@ -99,8 +144,8 @@ app.post('/results', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// Add new question (admin only)
-app.post('/questions', adminAuth, async (req, res) => {
+// Questions adding → only admin
+app.post('/questions', roleAuth(['admin']), async (req, res) => {
   try {
     const { mock_id, question_text, options, correct_answer, marks } = req.body;
 
@@ -119,9 +164,8 @@ app.post('/questions', adminAuth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // Delete question (Only for admin)
-app.delete('/questions/:id', adminAuth, async (req, res) => {
+app.delete('/questions/:id', roleAuth(['admin']), async (req, res) => {
   try {
     const questionId = req.params.id;
     const [result] = await pool.query('DELETE FROM questions WHERE id = ?', [questionId]);
@@ -135,7 +179,6 @@ app.delete('/questions/:id', adminAuth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // Get results with mock test names
 app.get('/results/:userId', async (req, res) => {
   try {

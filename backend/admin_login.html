@@ -4,7 +4,7 @@
   <title>Admin Login</title>
 </head>
 <body>
-  <h2>Admin Login</h2>
+  <h2>Login (Editor / Publisher / Admin)</h2>
   <form id="adminLoginForm">
     Email: <input type="email" name="email" required><br><br>
     Password: <input type="password" name="password" required><br><br>
@@ -29,17 +29,12 @@
         const data = await res.json();
 
         if (data.success) {
-          // Check if user is admin
-          if (data.user.role !== 'admin') {
-            alert("❌ Access denied. You are not an admin.");
-            return;
-          }
+          // Save token + role
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("role", data.user.role);
 
-          // Save token in localStorage
-          localStorage.setItem("adminToken", data.token);
-
-          alert("✅ Login successful! Redirecting to admin panel...");
-          window.location.href = "admin.html"; // redirect to admin panel
+          alert("✅ Login successful! Redirecting to panel...");
+          window.location.href = "admin.html";
         } else {
           alert(data.message || "❌ Login failed");
         }
