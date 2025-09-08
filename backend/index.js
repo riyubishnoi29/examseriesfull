@@ -32,25 +32,34 @@ const pool = mysql.createPool({
 
 // --- API Routes ---
 
-// --- Middleware to protect admin routes ---
-const adminAuth = async (req, res, next) => {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ success: false, message: 'No token provided' });
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.id;
+// --- Middleware: role-based auth ---
+const roleAuth = (allowedRoles) => {
+  return async (req, res, next) => {
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, message: 'No token provided' });
 
-    const [rows] = await pool.query('SELECT role FROM users WHERE id = ?', [req.userId]);
-    if (!rows.length || rows[0].role !== 'admin') {
-      return res.status(403).json({ success: false, message: '❌ Access denied. Admins only' });
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.userId = decoded.id;
+
+      const [rows] = await pool.query('SELECT role FROM users WHERE id = ?', [req.userId]);
+      if (!rows.length) {
+        return res.status(403).json({ success: false, message: '❌ User not found' });
+      }
+
+      const userRole = rows[0].role;
+      if (!allowedRoles.includes(userRole)) {
+        return res.status(403).json({ success: false, message: '❌ Access denied' });
+      }
+
+      req.userRole = userRole; // store for later use
+      next();
+    } catch {
+      return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
     }
-
-    next();
-  } catch {
-    return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
-  }
+  };
 };
 
 // Get all exams
@@ -99,8 +108,9 @@ app.post('/results', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// Add new question (admin only)
-app.post('/questions', adminAuth, async (req, res) => {
+
+// Add new question (editor + admin allowed)
+app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
   try {
     const { mock_id, question_text, options, correct_answer, marks } = req.body;
 
@@ -108,20 +118,57 @@ app.post('/questions', adminAuth, async (req, res) => {
       return res.status(400).json({ error: "mock_id, question_text, options, correct_answer are required" });
     }
 
+    // Default: editor/admin jab add kare to status = draft
     const [result] = await pool.query(
-      `INSERT INTO questions (mock_id, question_text, options, correct_answer, marks)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO questions (mock_id, question_text, options, correct_answer, marks, status)
+       VALUES (?, ?, ?, ?, ?, 'draft')`,
       [mock_id, question_text, JSON.stringify(options), correct_answer, marks || 1]
     );
 
-    res.json({ message: "✅ Question added successfully", id: result.insertId });
+    res.json({ message: "✅ Question added successfully (saved as draft)", id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// Publisher/Admin can publish question
+app.patch('/questions/:id/publish', roleAuth(['admin', 'publisher']), async (req, res) => {
+  try {
+    const questionId = req.params.id;
+    const [result] = await pool.query(
+      'UPDATE questions SET status = "live" WHERE id = ?',
+      [questionId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+
+    res.json({ message: "🚀 Question published (live)" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// Publisher/Admin can publish mock test
+app.patch('/mock_tests/:id/publish', roleAuth(['admin', 'publisher']), async (req, res) => {
+  try {
+    const testId = req.params.id;
+    const [result] = await pool.query(
+      'UPDATE mock_tests SET status = "live" WHERE id = ?',
+      [testId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Mock test not found" });
+    }
+
+    res.json({ message: "🚀 Mock test published (live)" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Delete question (Only for admin)
-app.delete('/questions/:id', adminAuth, async (req, res) => {
+// Delete question (Admin only)
+app.delete('/questions/:id', roleAuth(['admin']), async (req, res) => {
   try {
     const questionId = req.params.id;
     const [result] = await pool.query('DELETE FROM questions WHERE id = ?', [questionId]);
@@ -135,6 +182,7 @@ app.delete('/questions/:id', adminAuth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Get results with mock test names
 app.get('/results/:userId', async (req, res) => {
@@ -259,6 +307,26 @@ app.get('/admin/login', (req, res) => {
 // Admin panel page
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// ✅ sirf Admin ko allow
+app.post("/create-user", roleAuth(["admin"]), (req, res) => {
+  res.send("User created by admin");
+});
+
+// ✅ sirf Editor ko allow
+app.post("/add-question", roleAuth(["editor"]), (req, res) => {
+  res.send("Question added by editor");
+});
+
+// ✅ sirf Publisher ko allow
+app.post("/publish-test", roleAuth(["publisher"]), (req, res) => {
+  res.send("Test published by publisher");
+});
+
+// ✅ Admin + Publisher dono ko allow
+app.post("/approve-test", roleAuth(["admin", "publisher"]), (req, res) => {
+  res.send("Test approved by Admin/Publisher");
 });
 
 //test db connection

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Login</title>
+  <title>Admin / Editor / Publisher Login</title>
 </head>
 <body>
-  <h2>Admin Login</h2>
+  <h2>Login</h2>
   <form id="adminLoginForm">
     Email: <input type="email" name="email" required><br><br>
     Password: <input type="password" name="password" required><br><br>
@@ -29,17 +29,18 @@
         const data = await res.json();
 
         if (data.success) {
-          // Check if user is admin
-          if (data.user.role !== 'admin') {
-            alert("❌ Access denied. You are not an admin.");
+          // ✅ Only allow admin/editor/publisher
+          if (!['admin', 'editor', 'publisher'].includes(data.user.role)) {
+            alert("❌ Access denied. You are not authorized.");
             return;
           }
 
-          // Save token in localStorage
+          // Save token & role
           localStorage.setItem("adminToken", data.token);
+          localStorage.setItem("role", data.user.role);
 
-          alert("✅ Login successful! Redirecting to admin panel...");
-          window.location.href = "admin.html"; // redirect to admin panel
+          alert(`✅ Login successful as ${data.user.role}! Redirecting...`);
+          window.location.href = "admin.html"; 
         } else {
           alert(data.message || "❌ Login failed");
         }
