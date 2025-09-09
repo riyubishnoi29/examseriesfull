@@ -43,7 +43,7 @@
     // ✅ Fetch pending questions
     async function loadPendingQuestions() {
       try {
-        const res = await fetch("https://rankyard.in/questions/pending", {
+        const res = await fetch("https://rankyard.in/questions?status=pending", {
           headers: { "Authorization": `Bearer ${token}` }
         });
         const data = await res.json();
@@ -59,10 +59,11 @@
         data.forEach(q => {
           const card = document.createElement("div");
           card.className = "question-card";
+          const options = Array.isArray(q.options) ? q.options.join(", ") : q.options;
           card.innerHTML = `
             <p><b>Mock ID:</b> ${q.mock_id}</p>
             <p><b>Question:</b> ${q.question_text}</p>
-            <p><b>Options:</b> ${q.options.join(", ")}</p>
+            <p><b>Options:</b> ${options}</p>
             <p><b>Correct:</b> ${q.correct_answer}</p>
             <button class="approve" onclick="updateQuestionStatus(${q.id}, 'approved')">Approve</button>
             <button class="reject" onclick="updateQuestionStatus(${q.id}, 'rejected')">Reject</button>
@@ -77,9 +78,13 @@
     // ✅ Approve or Reject Question
     async function updateQuestionStatus(questionId, status) {
       try {
-        const res = await fetch(`https://rankyard.in/questions/${questionId}/${status}`, {
+        const res = await fetch(`https://rankyard.in/questions/${questionId}/status`, {
           method: "PATCH",
-          headers: { "Authorization": `Bearer ${token}` }
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ status })
         });
 
         const result = await res.json();

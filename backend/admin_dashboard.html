@@ -58,17 +58,24 @@
         const tbody = document.getElementById("questionsTable");
         tbody.innerHTML = "";
 
-        if (data.length === 0) {
+        if (!data.length) {
           tbody.innerHTML = "<tr><td colspan='7'>No pending questions</td></tr>";
           return;
         }
 
         data.forEach(q => {
+          let optionsText = "";
+          try {
+            optionsText = Array.isArray(q.options) ? q.options.join(", ") : JSON.parse(q.options).join(", ");
+          } catch {
+            optionsText = q.options;
+          }
+
           const row = `<tr>
             <td>${q.id}</td>
             <td>${q.mock_id}</td>
             <td>${q.question_text}</td>
-            <td>${q.options.join(", ")}</td>
+            <td>${optionsText}</td>
             <td>${q.correct_answer}</td>
             <td>${q.marks}</td>
             <td>
@@ -87,7 +94,7 @@
     // ✅ Update Question Status
     async function updateStatus(id, status) {
       try {
-        const res = await fetch(`https://rankyard.in/questions/${id}`, {
+        const res = await fetch(`https://rankyard.in/questions/${id}/status`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -96,11 +103,12 @@
           body: JSON.stringify({ status })
         });
 
+        const result = await res.json();
         if (res.ok) {
-          alert(`Question ${status} successfully!`);
+          alert(result.message || `Question ${status} successfully!`);
           loadPendingQuestions();
         } else {
-          alert("Error updating question");
+          alert(result.error || "Error updating question");
         }
       } catch (err) {
         alert("Error: " + err.message);
@@ -116,11 +124,12 @@
           headers: { "Authorization": `Bearer ${token}` }
         });
 
+        const result = await res.json();
         if (res.ok) {
-          alert("Question deleted successfully!");
+          alert(result.message || "Question deleted successfully!");
           loadPendingQuestions();
         } else {
-          alert("Error deleting question");
+          alert(result.error || "Error deleting question");
         }
       } catch (err) {
         alert("Error: " + err.message);
@@ -141,10 +150,11 @@
           }
         });
 
+        const data = await res.json();
         if (res.ok) {
-          alert("Test published successfully!");
+          alert(data.message || "Test published successfully!");
         } else {
-          alert("Error publishing test");
+          alert(data.error || "Error publishing test");
         }
       } catch (err) {
         alert("Error: " + err.message);
