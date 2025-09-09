@@ -4,14 +4,48 @@
 <head>
   <title>Publisher Dashboard</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h2 { margin-bottom: 10px; }
-    .question-card { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; background: #f9f9f9; }
-    button { margin-top: 5px; padding: 6px 12px; border: none; cursor: pointer; border-radius: 4px; }
-    .approve { background: #28a745; color: #fff; }
-    .reject { background: #dc3545; color: #fff; }
-    .approve:hover { background: #218838; }
-    .reject:hover { background: #c82333; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    .question-card {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      background: #f9f9f9;
+    }
+
+    button {
+      margin-top: 5px;
+      padding: 6px 12px;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .approve {
+      background: #28a745;
+      color: #fff;
+    }
+
+    .reject {
+      background: #dc3545;
+      color: #fff;
+    }
+
+    .approve:hover {
+      background: #218838;
+    }
+
+    .reject:hover {
+      background: #c82333;
+    }
   </style>
 </head>
 
@@ -55,9 +89,9 @@
             <p><b>Question:</b> ${q.question_text}</p>
             <p><b>Options:</b> ${options}</p>
             <p><b>Correct:</b> ${q.correct_answer}</p>
-            <button class="approve" onclick="updateQuestionStatus(${q.id}, 'live')">Approved</button>
-            <button class="reject" onclick="updateQuestionStatus(${q.id}, 'draft')">Rejected</button>
-          `;
+           <button class="approve" onclick="updateQuestionStatus(${q.id}, 'approved')">Approved</button>
+           <button class="reject" onclick="updateQuestionStatus(${q.id}, 'rejected')">Rejected</button>
+ `;
           container.appendChild(card);
         });
       } catch (err) {

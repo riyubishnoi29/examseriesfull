@@ -156,9 +156,9 @@ app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req,
     console.log("PATCH BODY:", req.body);
     // ✅ Map frontend status to DB status
     let dbStatus;
-    if (status === 'approved') dbStatus = 'live';
-    else if (status === 'rejected') dbStatus = 'draft'; // rejected wapas draft
-    else if (status === 'draft') dbStatus = 'draft';
+    let s = status.toLowerCase(); // lowercase convert
+    if (s === 'approved' || s === 'live') dbStatus = 'live';
+    else if (s === 'rejected' || s === 'draft') dbStatus = 'draft';
     else return res.status(400).json({ error: "Invalid status" });
 
     const [result] = await pool.query(
