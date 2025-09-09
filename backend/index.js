@@ -150,6 +150,7 @@ app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
 // Update question status (approve/reject) - only admin/publisher
 app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {
+        console.log("PATCH BODY:", req.body); 
     const questionId = req.params.id;
     const { status } = req.body; // frontend se aayega 'approved' ya 'rejected'
 
