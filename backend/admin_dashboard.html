@@ -19,7 +19,7 @@
   <h2>Welcome, ADMIN!</h2>
   <button onclick="logout()">Logout</button>
 
-  <h3>Pending Questions</h3>
+  <h3>Draft Questions</h3>
   <table>
     <thead>
       <tr>
@@ -48,10 +48,10 @@
       window.location.href = "admin_login.html";
     }
 
-    // ✅ Fetch Pending Questions
+    // ✅ Fetch Draft Questions
     async function loadPendingQuestions() {
       try {
-        const res = await fetch("https://rankyard.in/questions?status=pending", {
+        const res = await fetch("https://rankyard.in/questions?status=draft", {
           headers: { "Authorization": `Bearer ${token}` }
         });
         const data = await res.json();
@@ -59,7 +59,7 @@
         tbody.innerHTML = "";
 
         if (!data.length) {
-          tbody.innerHTML = "<tr><td colspan='7'>No pending questions</td></tr>";
+          tbody.innerHTML = "<tr><td colspan='7'>No draft questions</td></tr>";
           return;
         }
 
@@ -79,8 +79,8 @@
             <td>${q.correct_answer}</td>
             <td>${q.marks}</td>
             <td>
-              <button class="approve" onclick="updateStatus(${q.id}, 'approved')">Approve</button>
-              <button class="reject" onclick="updateStatus(${q.id}, 'rejected')">Reject</button>
+              <button class="approve" onclick="updateStatus(${q.id}, 'live')">Approve</button>
+              <button class="reject" onclick="updateStatus(${q.id}, 'draft')">Reject</button>
               <button class="delete" onclick="deleteQuestion(${q.id})">Delete</button>
             </td>
           </tr>`;
@@ -100,7 +100,7 @@
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`
           },
-          body: JSON.stringify({ status })
+          body: JSON.stringify({ status }) // ✅ Only 'draft' or 'live'
         });
 
         const result = await res.json();
@@ -161,13 +161,12 @@
       }
     }
 
-    // ✅ Logout
     function logout() {
       localStorage.clear();
       window.location.href = "admin_login.html";
     }
 
-    // Load pending questions when page loads
+    // Load draft questions on page load
     loadPendingQuestions();
   </script>
 </body>

@@ -147,19 +147,22 @@ app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
   }
 });
 
-// Approve or Reject Question (Admin + Publisher)
+// Update question status (approve/reject) - only admin/publisher
 app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {
     const questionId = req.params.id;
-    const { status } = req.body; // "approved" or "rejected"
+    const { status } = req.body; // frontend se aayega 'approved' ya 'rejected'
 
-    if (!['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
-    }
+    // ✅ Map frontend status to DB status
+    let dbStatus;
+    if (status === 'approved') dbStatus = 'live';
+    else if (status === 'rejected') dbStatus = 'draft'; // rejected wapas draft
+    else if (status === 'draft') dbStatus = 'draft';
+    else return res.status(400).json({ error: "Invalid status" });
 
     const [result] = await pool.query(
       'UPDATE questions SET status = ? WHERE id = ?',
-      [status, questionId]
+      [dbStatus, questionId]
     );
 
     if (result.affectedRows === 0) {
@@ -171,6 +174,7 @@ app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req,
     res.status(500).json({ error: err.message });
   }
 });
+
 // Get all pending questions
 app.get('/questions', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {
