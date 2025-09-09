@@ -178,7 +178,7 @@ app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req,
 // Get all pending questions
 app.get('/questions', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {
-    const status = req.query.status || 'pending';
+    const status = req.query.status || 'draft';
     const [rows] = await pool.query('SELECT * FROM questions WHERE status = ?', [status]);
     res.json(rows);
   } catch (err) {

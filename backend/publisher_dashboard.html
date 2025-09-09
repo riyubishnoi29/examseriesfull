@@ -55,8 +55,8 @@
             <p><b>Question:</b> ${q.question_text}</p>
             <p><b>Options:</b> ${options}</p>
             <p><b>Correct:</b> ${q.correct_answer}</p>
-            <button class="approve" onclick="updateQuestionStatus(${q.id}, 'live')">Approve</button>
-            <button class="reject" onclick="updateQuestionStatus(${q.id}, 'draft')">Reject</button>
+            <button class="approve" onclick="updateQuestionStatus(${q.id}, 'live')">Approved</button>
+            <button class="reject" onclick="updateQuestionStatus(${q.id}, 'draft')">Rejected</button>
           `;
           container.appendChild(card);
         });
