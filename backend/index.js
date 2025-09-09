@@ -62,6 +62,21 @@ const roleAuth = (allowedRoles) => {
   };
 };
 
+// Simple JWT auth middleware
+const auth = async (req, res, next) => {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ success: false, message: 'No token provided' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.id;
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
+  }
+};
+
 // Get all exams
 
 app.get('/exams', async (req, res) => {
@@ -299,7 +314,7 @@ app.get('/api/auth/profile', auth, async (req, res) => {
 
 // Serve the frontend
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
+  res.sendFile(__dirname + '/index.html');
 });
 
 // Admin login page
