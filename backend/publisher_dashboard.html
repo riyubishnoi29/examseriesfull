@@ -43,9 +43,10 @@
     // ✅ Fetch pending questions
     async function loadPendingQuestions() {
       try {
-        const res = await fetch("https://rankyard.in/questions?status=pending", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
+       const res = await fetch("https://rankyard.in/questions?status=pending", {
+  headers: { "Authorization": `Bearer ${token}` }
+});
+
         const data = await res.json();
 
         const container = document.getElementById("pendingQuestions");
