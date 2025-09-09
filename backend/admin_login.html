@@ -29,18 +29,26 @@
         const data = await res.json();
 
         if (data.success) {
-          // ✅ Only allow admin/editor/publisher
-          if (!['admin', 'editor', 'publisher'].includes(data.user.role)) {
+          // ✅ Only allow admin/editor/publisher roles
+          const role = data.user.role;
+          if (!['admin', 'editor', 'publisher'].includes(role)) {
             alert("❌ Access denied. You are not authorized.");
             return;
           }
 
           // Save token & role
           localStorage.setItem("adminToken", data.token);
-          localStorage.setItem("role", data.user.role);
+          localStorage.setItem("role", role);
 
-          alert(`✅ Login successful as ${data.user.role}! Redirecting...`);
-          window.location.href = "admin.html"; 
+          // ✅ Redirect according to role
+          if (role === "admin") {
+            window.location.href = "admin_dashboard.html";
+          } else if (role === "editor") {
+            window.location.href = "editor_dashboard.html";
+          } else if (role === "publisher") {
+            window.location.href = "publisher_dashboard.html";
+          }
+
         } else {
           alert(data.message || "❌ Login failed");
         }

@@ -108,7 +108,6 @@ app.post('/results', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // Add new question (editor + admin allowed)
 app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
   try {
@@ -118,36 +117,55 @@ app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
       return res.status(400).json({ error: "mock_id, question_text, options, correct_answer are required" });
     }
 
-    // Default: editor/admin jab add kare to status = draft
+    // ✅ Default: pending so publisher/admin can approve
     const [result] = await pool.query(
       `INSERT INTO questions (mock_id, question_text, options, correct_answer, marks, status)
-       VALUES (?, ?, ?, ?, ?, 'draft')`,
+       VALUES (?, ?, ?, ?, ?, 'pending')`,
       [mock_id, question_text, JSON.stringify(options), correct_answer, marks || 1]
     );
 
-    res.json({ message: "✅ Question added successfully (saved as draft)", id: result.insertId });
+    res.json({ message: "✅ Question submitted for review", id: result.insertId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-// Publisher/Admin can publish question
-app.patch('/questions/:id/publish', roleAuth(['admin', 'publisher']), async (req, res) => {
+// Approve or Reject Question (Admin + Publisher)
+app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {
     const questionId = req.params.id;
+    const { status } = req.body; // "approved" or "rejected"
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
     const [result] = await pool.query(
-      'UPDATE questions SET status = "live" WHERE id = ?',
-      [questionId]
+      'UPDATE questions SET status = ? WHERE id = ?',
+      [status, questionId]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Question not found" });
     }
 
-    res.json({ message: "🚀 Question published (live)" });
+    res.json({ message: `Question ${status} successfully` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+// Get all pending questions
+app.get('/questions', roleAuth(['admin', 'publisher']), async (req, res) => {
+  try {
+    const status = req.query.status || 'pending';
+    const [rows] = await pool.query('SELECT * FROM questions WHERE status = ?', [status]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
 // Publisher/Admin can publish mock test
 app.patch('/mock_tests/:id/publish', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {
@@ -202,21 +220,6 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
-// --- Middleware for protected routes ---
-const auth = (req, res, next) => {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ success: false, message: 'No token provided' });
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.id;
-    next();
-  } catch {
-    return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
-  }
-};
 
 
 // --- Auth Routes ---
@@ -309,25 +312,8 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// ✅ sirf Admin ko allow
-app.post("/create-user", roleAuth(["admin"]), (req, res) => {
-  res.send("User created by admin");
-});
 
-// ✅ sirf Editor ko allow
-app.post("/add-question", roleAuth(["editor"]), (req, res) => {
-  res.send("Question added by editor");
-});
 
-// ✅ sirf Publisher ko allow
-app.post("/publish-test", roleAuth(["publisher"]), (req, res) => {
-  res.send("Test published by publisher");
-});
-
-// ✅ Admin + Publisher dono ko allow
-app.post("/approve-test", roleAuth(["admin", "publisher"]), (req, res) => {
-  res.send("Test approved by Admin/Publisher");
-});
 
 //test db connection
 async function testDbConnection() {

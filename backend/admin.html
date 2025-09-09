@@ -1,31 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Panel</title>
+  <title>Admin / Editor / Publisher Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h2 { color: #333; }
+    .section { margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+    input, textarea, button { margin-top: 5px; display: block; width: 100%; padding: 8px; }
+    button { background: #007bff; color: #fff; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+  </style>
 </head>
 <body>
   <h2 id="welcome"></h2>
+  <button onclick="logout()">Logout</button>
 
-  <!-- Editor/Admin can add questions -->
-  <div id="questionSection" style="display:none;">
+  <!-- Add Question Section -->
+  <div id="questionSection" class="section" style="display:none;">
     <h3>Add New Question</h3>
     <form id="questionForm">
-      Mock ID: <input type="number" name="mock_id" required><br><br>
-      Question: <textarea name="question_text" required></textarea><br><br>
-      Option 1: <input type="text" name="option1" required><br>
-      Option 2: <input type="text" name="option2" required><br>
-      Option 3: <input type="text" name="option3" required><br>
-      Option 4: <input type="text" name="option4" required><br><br>
-      Correct Answer: <input type="text" name="correct_answer" required><br><br>
-      Marks: <input type="number" name="marks" value="1"><br><br>
+      <label>Mock ID:</label>
+      <input type="number" name="mock_id" required>
+
+      <label>Question:</label>
+      <textarea name="question_text" required></textarea>
+
+      <label>Options:</label>
+      <input type="text" name="option1" placeholder="Option 1" required>
+      <input type="text" name="option2" placeholder="Option 2" required>
+      <input type="text" name="option3" placeholder="Option 3" required>
+      <input type="text" name="option4" placeholder="Option 4" required>
+
+      <label>Correct Answer:</label>
+      <input type="text" name="correct_answer" required>
+
+      <label>Marks:</label>
+      <input type="number" name="marks" value="1">
+
       <button type="submit">Add Question</button>
     </form>
   </div>
 
-  <!-- Publisher/Admin can publish tests -->
-  <div id="publishSection" style="display:none;">
+  <!-- Publish Section -->
+  <div id="publishSection" class="section" style="display:none;">
     <h3>Publish Test</h3>
-    Test ID: <input type="number" id="publishTestId"><br><br>
+    <input type="number" id="publishTestId" placeholder="Enter Test ID">
     <button onclick="publishTest()">Publish</button>
   </div>
 
@@ -40,7 +59,7 @@
 
     document.getElementById("welcome").innerText = `Welcome, ${role.toUpperCase()}!`;
 
-    // ✅ Role-based UI
+    // Role-based UI
     if (role === "admin" || role === "editor") {
       document.getElementById("questionSection").style.display = "block";
     }
@@ -48,7 +67,7 @@
       document.getElementById("publishSection").style.display = "block";
     }
 
-    // ✅ Add question
+    // Add question
     document.getElementById("questionForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
@@ -77,19 +96,20 @@
 
         const result = await res.json();
         alert(result.message || result.error || "✅ Question added successfully!");
+        e.target.reset();
       } catch (err) {
         alert("⚠️ Error: " + err.message);
       }
     });
 
-    // ✅ Publish test
+    // Publish test
     async function publishTest() {
       const testId = document.getElementById("publishTestId").value;
       if (!testId) return alert("❌ Enter Test ID");
 
       try {
         const res = await fetch(`https://rankyard.in/mock_tests/${testId}/publish`, {
-          method: "PATCH",   // 🔥 Fix here (was PUT earlier)
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`
@@ -105,6 +125,13 @@
       } catch (err) {
         alert("⚠️ Error: " + err.message);
       }
+    }
+
+    // Logout
+    function logout() {
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("role");
+      window.location.href = "admin_login.html";
     }
   </script>
 </body>

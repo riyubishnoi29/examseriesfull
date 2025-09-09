@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Editor Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h2 { margin-bottom: 10px; }
+    form { margin-top: 20px; }
+    input, textarea {
+      display: block;
+      width: 300px;
+      margin-bottom: 10px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      padding: 8px 15px;
+      border: none;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover { background: #0056b3; }
+  </style>
+</head>
+<body>
+  <h2>Welcome, EDITOR!</h2>
+  <button onclick="logout()">Logout</button>
+
+  <h3>Add New Question</h3>
+  <form id="questionForm">
+    <input type="number" name="mock_id" placeholder="Mock ID" required>
+    <textarea name="question_text" placeholder="Question Text" required></textarea>
+    <input type="text" name="option1" placeholder="Option 1" required>
+    <input type="text" name="option2" placeholder="Option 2" required>
+    <input type="text" name="option3" placeholder="Option 3" required>
+    <input type="text" name="option4" placeholder="Option 4" required>
+    <input type="text" name="correct_answer" placeholder="Correct Answer" required>
+    <input type="number" name="marks" placeholder="Marks" value="1" required>
+    <button type="submit">Submit Question</button>
+  </form>
+
+  <script>
+    const token = localStorage.getItem("adminToken");
+    const role = localStorage.getItem("role");
+
+    if (!token || role !== "editor") {
+      alert("Unauthorized! Please login again.");
+      window.location.href = "admin_login.html";
+    }
+
+    // ✅ Add Question (Status = Pending)
+    document.getElementById("questionForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+
+      const data = {
+        mock_id: parseInt(formData.get("mock_id")),
+        question_text: formData.get("question_text"),
+        options: [
+          formData.get("option1"),
+          formData.get("option2"),
+          formData.get("option3"),
+          formData.get("option4")
+        ],
+        correct_answer: formData.get("correct_answer"),
+        marks: parseInt(formData.get("marks")),
+        status: "pending"  // ✅ so publisher can review
+      };
+
+      try {
+        const res = await fetch("https://rankyard.in/questions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+        if (res.ok) {
+          alert("✅ Question submitted for review!");
+          e.target.reset();
+        } else {
+          alert("❌ Error: " + (result.message || "Something went wrong"));
+        }
+      } catch (err) {
+        alert("⚠️ Error: " + err.message);
+      }
+    });
+
+    // ✅ Logout
+    function logout() {
+      localStorage.clear();
+      window.location.href = "admin_login.html";
+    }
+  </script>
+</body>
+</html>

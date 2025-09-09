@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h2 { margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 8px; border: 1px solid #ddd; text-align: center; }
+    th { background: #f2f2f2; }
+    button { padding: 6px 12px; margin: 2px; border: none; cursor: pointer; border-radius: 4px; }
+    .approve { background: #28a745; color: white; }
+    .reject { background: #dc3545; color: white; }
+    .delete { background: #6c757d; color: white; }
+    .publish { background: #007bff; color: white; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Welcome, ADMIN!</h2>
+  <button onclick="logout()">Logout</button>
+
+  <h3>Pending Questions</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Mock ID</th>
+        <th>Question</th>
+        <th>Options</th>
+        <th>Correct Answer</th>
+        <th>Marks</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="questionsTable"></tbody>
+  </table>
+
+  <h3>Publish Test</h3>
+  <input type="number" id="publishTestId" placeholder="Enter Test ID">
+  <button class="publish" onclick="publishTest()">Publish Test</button>
+
+  <script>
+    const token = localStorage.getItem("adminToken");
+    const role = localStorage.getItem("role");
+
+    if (!token || role !== "admin") {
+      alert("Unauthorized! Please login again.");
+      window.location.href = "admin_login.html";
+    }
+
+    // ✅ Fetch Pending Questions
+    async function loadPendingQuestions() {
+      try {
+        const res = await fetch("https://rankyard.in/questions?status=pending", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const tbody = document.getElementById("questionsTable");
+        tbody.innerHTML = "";
+
+        if (data.length === 0) {
+          tbody.innerHTML = "<tr><td colspan='7'>No pending questions</td></tr>";
+          return;
+        }
+
+        data.forEach(q => {
+          const row = `<tr>
+            <td>${q.id}</td>
+            <td>${q.mock_id}</td>
+            <td>${q.question_text}</td>
+            <td>${q.options.join(", ")}</td>
+            <td>${q.correct_answer}</td>
+            <td>${q.marks}</td>
+            <td>
+              <button class="approve" onclick="updateStatus(${q.id}, 'approved')">Approve</button>
+              <button class="reject" onclick="updateStatus(${q.id}, 'rejected')">Reject</button>
+              <button class="delete" onclick="deleteQuestion(${q.id})">Delete</button>
+            </td>
+          </tr>`;
+          tbody.innerHTML += row;
+        });
+      } catch (err) {
+        alert("Error loading questions: " + err.message);
+      }
+    }
+
+    // ✅ Update Question Status
+    async function updateStatus(id, status) {
+      try {
+        const res = await fetch(`https://rankyard.in/questions/${id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ status })
+        });
+
+        if (res.ok) {
+          alert(`Question ${status} successfully!`);
+          loadPendingQuestions();
+        } else {
+          alert("Error updating question");
+        }
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    }
+
+    // ✅ Delete Question
+    async function deleteQuestion(id) {
+      if (!confirm("Are you sure you want to delete this question?")) return;
+      try {
+        const res = await fetch(`https://rankyard.in/questions/${id}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+          alert("Question deleted successfully!");
+          loadPendingQuestions();
+        } else {
+          alert("Error deleting question");
+        }
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    }
+
+    // ✅ Publish Test
+    async function publishTest() {
+      const testId = document.getElementById("publishTestId").value;
+      if (!testId) return alert("Enter a valid Test ID");
+
+      try {
+        const res = await fetch(`https://rankyard.in/mock_tests/${testId}/publish`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (res.ok) {
+          alert("Test published successfully!");
+        } else {
+          alert("Error publishing test");
+        }
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    }
+
+    // ✅ Logout
+    function logout() {
+      localStorage.clear();
+      window.location.href = "admin_login.html";
+    }
+
+    // Load pending questions when page loads
+    loadPendingQuestions();
+  </script>
+</body>
+</html>
