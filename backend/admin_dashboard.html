@@ -79,8 +79,8 @@
             <td>${q.correct_answer}</td>
             <td>${q.marks}</td>
             <td>
-              <button class="approve" onclick="updateStatus(${q.id}, 'live')">Approve</button>
-              <button class="reject" onclick="updateStatus(${q.id}, 'draft')">Reject</button>
+              <button class="approve" onclick="updateStatus(${q.id}, 'approved')">Approved</button>
+              <button class="reject" onclick="updateStatus(${q.id}, 'rejected')">Rejected</button>
               <button class="delete" onclick="deleteQuestion(${q.id})">Delete</button>
             </td>
           </tr>`;
