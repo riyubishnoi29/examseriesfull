@@ -129,21 +129,24 @@ app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
     const { mock_id, question_text, options, correct_answer, marks } = req.body;
 
     if (!mock_id || !question_text || !options || !correct_answer) {
-      return res.status(400).json({ error: "mock_id, question_text, options, correct_answer are required" });
+      return res.status(400).json({ error: "All fields are required" });
     }
 
-    // ✅ Default: pending so publisher/admin can approve
+    const optionsJson = typeof options === "string" ? options : JSON.stringify(options);
+
     const [result] = await pool.query(
       `INSERT INTO questions (mock_id, question_text, options, correct_answer, marks, status)
-       VALUES (?, ?, ?, ?, ?, 'pending')`,
-      [mock_id, question_text, JSON.stringify(options), correct_answer, marks || 1]
+       VALUES (?, ?, ?, ?, ?, 'draft')`,
+      [mock_id, question_text, optionsJson, correct_answer, marks || 1]
     );
 
-    res.json({ message: "✅ Question submitted for review", id: result.insertId });
+    res.json({ message: "✅ Question saved as draft", id: result.insertId });
   } catch (err) {
+    console.error("QUESTION INSERT ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
 // Approve or Reject Question (Admin + Publisher)
 app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {

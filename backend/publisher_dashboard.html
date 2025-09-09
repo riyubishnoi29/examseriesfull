@@ -1,109 +1,135 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <title>Publisher Dashboard</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h2 { margin-bottom: 10px; }
-    .question-card {
-      border: 1px solid #ddd;
-      padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 5px;
-      background: #f9f9f9;
-    }
-    button {
-      margin-top: 5px;
-      padding: 6px 12px;
-      border: none;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    .approve { background: #28a745; color: #fff; }
-    .reject { background: #dc3545; color: #fff; }
-    .approve:hover { background: #218838; }
-    .reject:hover { background: #c82333; }
-  </style>
-</head>
-<body>
-  <h2>Welcome, PUBLISHER!</h2>
-  <button onclick="logout()">Logout</button>
-
-  <h3>Pending Questions for Review</h3>
-  <div id="pendingQuestions"></div>
-
-  <script>
-    const token = localStorage.getItem("adminToken");
-    const role = localStorage.getItem("role");
-    if (!token || role !== "publisher") {
-      alert("Unauthorized! Please login again.");
-      window.location.href = "admin_login.html";
-    }
-
-    // ✅ Fetch pending questions
-    async function loadPendingQuestions() {
-      try {
-       const res = await fetch("https://rankyard.in/questions?status=pending", {
-  headers: { "Authorization": `Bearer ${token}` }
-});
-
-        const data = await res.json();
-
-        const container = document.getElementById("pendingQuestions");
-        container.innerHTML = "";
-
-        if (!data.length) {
-          container.innerHTML = "<p>No pending questions for review.</p>";
-          return;
+    <title>Publisher Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
         }
 
-        data.forEach(q => {
-          const card = document.createElement("div");
-          card.className = "question-card";
-          const options = Array.isArray(q.options) ? q.options.join(", ") : q.options;
-          card.innerHTML = `
-            <p><b>Mock ID:</b> ${q.mock_id}</p>
-            <p><b>Question:</b> ${q.question_text}</p>
-            <p><b>Options:</b> ${options}</p>
-            <p><b>Correct:</b> ${q.correct_answer}</p>
-            <button class="approve" onclick="updateQuestionStatus(${q.id}, 'approved')">Approve</button>
-            <button class="reject" onclick="updateQuestionStatus(${q.id}, 'rejected')">Reject</button>
-          `;
-          container.appendChild(card);
-        });
-      } catch (err) {
-        alert("Error loading questions: " + err.message);
-      }
-    }
+        h2 {
+            margin-bottom: 10px;
+        }
 
-    // ✅ Approve or Reject Question
-    async function updateQuestionStatus(questionId, status) {
-      try {
-        const res = await fetch(`https://rankyard.in/questions/${questionId}/status`, {
-          method: "PATCH",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ status })
-        });
+        .question-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
 
-        const result = await res.json();
-        alert(result.message || `Question ${status}!`);
-        loadPendingQuestions(); // Refresh list
-      } catch (err) {
-        alert("Error: " + err.message);
-      }
-    }
+        button {
+            margin-top: 5px;
+            padding: 6px 12px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
 
-    // ✅ Logout
-    function logout() {
-      localStorage.clear();
-      window.location.href = "admin_login.html";
-    }
+        .approve {
+            background: #28a745;
+            color: #fff;
+        }
 
-    // Load pending questions on page load
-    loadPendingQuestions();
-  </script>
+        .reject {
+            background: #dc3545;
+            color: #fff;
+        }
+
+        .approve:hover {
+            background: #218838;
+        }
+
+        .reject:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Welcome, PUBLISHER!</h2>
+    <button onclick="logout()">Logout</button>
+
+    <h3>Pending Questions for Review</h3>
+    <div id="pendingQuestions"></div>
+
+    <script>
+        const token = localStorage.getItem("adminToken");
+        const role = localStorage.getItem("role");
+        if (!token || role !== "publisher") {
+            alert("Unauthorized! Please login again.");
+            window.location.href = "admin_login.html";
+        }
+
+        // ✅ Fetch pending questions
+        // ✅ Fetch draft questions for review
+        async function loadPendingQuestions() {
+            try {
+                const res = await fetch("https://rankyard.in/questions?status=draft", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                const data = await res.json();
+                const container = document.getElementById("pendingQuestions");
+                container.innerHTML = "";
+
+                if (!data.length) {
+                    container.innerHTML = "<p>No draft questions for review.</p>";
+                    return;
+                }
+
+                data.forEach(q => {
+                    const card = document.createElement("div");
+                    card.className = "question-card";
+                    const options = Array.isArray(q.options) ? q.options.join(", ") : q.options;
+                    card.innerHTML = `
+        <p><b>Mock ID:</b> ${q.mock_id}</p>
+        <p><b>Question:</b> ${q.question_text}</p>
+        <p><b>Options:</b> ${options}</p>
+        <p><b>Correct:</b> ${q.correct_answer}</p>
+        <button class="approve" onclick="updateQuestionStatus(${q.id}, 'live')">Approve</button>
+        <button class="reject" onclick="updateQuestionStatus(${q.id}, 'draft')">Reject</button>
+      `;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                alert("Error loading questions: " + err.message);
+            }
+        }
+
+        // ✅ Approve or Reject Question
+        async function updateQuestionStatus(questionId, status) {
+            try {
+                const res = await fetch(`https://rankyard.in/questions/${questionId}/status`, {
+                    method: "PATCH",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ status }) // ✅ Only 'draft' or 'live'
+                });
+
+                const result = await res.json();
+                alert(result.message || `Question ${status}!`);
+                loadPendingQuestions(); // Refresh list
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
+        }
+
+
+        // ✅ Logout
+        function logout() {
+            localStorage.clear();
+            window.location.href = "admin_login.html";
+        }
+
+        // Load pending questions on page load
+        loadPendingQuestions();
+    </script>
 </body>
+
 </html>

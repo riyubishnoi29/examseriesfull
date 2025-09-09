@@ -1,12 +1,24 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>Editor Dashboard</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h2 { margin-bottom: 10px; }
-    form { margin-top: 20px; }
-    input, textarea {
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    form {
+      margin-top: 20px;
+    }
+
+    input,
+    textarea {
       display: block;
       width: 300px;
       margin-bottom: 10px;
@@ -14,6 +26,7 @@
       border: 1px solid #ddd;
       border-radius: 4px;
     }
+
     button {
       padding: 8px 15px;
       border: none;
@@ -22,9 +35,13 @@
       cursor: pointer;
       border-radius: 4px;
     }
-    button:hover { background: #0056b3; }
+
+    button:hover {
+      background: #0056b3;
+    }
   </style>
 </head>
+
 <body>
   <h2>Welcome, EDITOR!</h2>
   <button onclick="logout()">Logout</button>
@@ -52,6 +69,7 @@
     }
 
     // ✅ Add Question (Status = Pending)
+    // ✅ Add Question (Status = Draft)
     document.getElementById("questionForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
@@ -67,7 +85,7 @@
         ],
         correct_answer: formData.get("correct_answer"),
         marks: parseInt(formData.get("marks")),
-        status: "pending"  // ✅ so publisher can review
+        status: "draft"  // ✅ DB enum compatible
       };
 
       try {
@@ -82,7 +100,7 @@
 
         const result = await res.json();
         if (res.ok) {
-          alert("✅ Question submitted for review!");
+          alert("✅ Question saved as draft!");
           e.target.reset();
         } else {
           alert("❌ Error: " + (result.message || "Something went wrong"));
@@ -99,4 +117,5 @@
     }
   </script>
 </body>
+
 </html>
