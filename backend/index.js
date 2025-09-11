@@ -15,6 +15,7 @@ const signToken = (payload) =>
 const app = express();
 
 app.use(express.static(path.join(__dirname)));
+
 app.use(cors());
 app.use(express.json());
 console.log("using hostname ", process.env.DB_HOST);
