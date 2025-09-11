@@ -14,7 +14,7 @@ const signToken = (payload) =>
   jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 const app = express();
 
-app.use(express.static(path.join(__dirname)));
+
 
 app.use(cors());
 app.use(express.json());
@@ -191,6 +191,8 @@ app.get('/questions', roleAuth(['admin', 'publisher']), async (req, res) => {
 
 // Add new mock test (Admin + Editor)
 app.post('/mock_tests', roleAuth(['admin', 'editor']), async (req, res) => {
+  console.log("POST /mock_tests body:", req.body);
+  console.log("userRole:", req.userRole);
   try {
     const { exam_id, title, duration_minutes, difficulty, total_marks } = req.body;
 
@@ -357,7 +359,7 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-
+app.use(express.static(path.join(__dirname)));
 
 
 //test db connection
