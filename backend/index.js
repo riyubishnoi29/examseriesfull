@@ -14,7 +14,7 @@ const signToken = (payload) =>
   jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 const app = express();
 
-
+app.use(express.static(path.join(__dirname)));
 
 app.use(cors());
 app.use(express.json());
@@ -359,7 +359,7 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-app.use(express.static(path.join(__dirname)));
+
 
 
 //test db connection
