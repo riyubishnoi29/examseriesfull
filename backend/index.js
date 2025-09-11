@@ -15,7 +15,6 @@ const signToken = (payload) =>
 const app = express();
 
 app.use(express.static(path.join(__dirname)));
-
 app.use(cors());
 app.use(express.json());
 console.log("using hostname ", process.env.DB_HOST);
@@ -191,8 +190,6 @@ app.get('/questions', roleAuth(['admin', 'publisher']), async (req, res) => {
 
 // Add new mock test (Admin + Editor)
 app.post('/mock_tests', roleAuth(['admin', 'editor']), async (req, res) => {
-  console.log("POST /mock_tests body:", req.body);
-  console.log("userRole:", req.userRole);
   try {
     const { exam_id, title, duration_minutes, difficulty, total_marks } = req.body;
 
