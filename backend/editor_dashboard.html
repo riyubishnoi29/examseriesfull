@@ -17,6 +17,17 @@
   <h2>Welcome, EDITOR!</h2>
   <button onclick="logout()">Logout</button>
 
+  <!-- ✅ Mock Test Form Added -->
+  <h3>Add New Mock Test</h3>
+  <form id="mockForm">
+    <input type="number" name="exam_id" placeholder="Exam ID" required>
+    <input type="text" name="title" placeholder="Mock Title" required>
+    <textarea name="description" placeholder="Description"></textarea>
+    <input type="number" name="total_marks" placeholder="Total Marks" required>
+    <input type="number" name="duration" placeholder="Duration (minutes)" required>
+    <button type="submit">Submit Mock Test</button>
+  </form>
+
   <h3>Add New Question</h3>
   <form id="questionForm">
     <input type="number" name="mock_id" placeholder="Mock ID" required>
@@ -38,6 +49,42 @@
       alert("Unauthorized! Please login again.");
       window.location.href = "admin_login.html";
     }
+
+    // ✅ Add Mock Test (Status = Draft)
+    document.getElementById("mockForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+
+      const data = {
+        exam_id: parseInt(formData.get("exam_id")),
+        title: formData.get("title"),
+        description: formData.get("description"),
+        total_marks: parseInt(formData.get("total_marks")),
+        duration: parseInt(formData.get("duration")),
+        status: "draft"
+      };
+
+      try {
+        const res = await fetch("https://rankyard.in/mock_tests", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+        if (res.ok) {
+          alert("✅ Mock Test saved as draft!");
+          e.target.reset();
+        } else {
+          alert("❌ Error: " + (result.error || "Something went wrong"));
+        }
+      } catch (err) {
+        alert("⚠️ Error: " + err.message);
+      }
+    });
 
     // ✅ Add Question (Status = Draft)
     document.getElementById("questionForm").addEventListener("submit", async (e) => {
