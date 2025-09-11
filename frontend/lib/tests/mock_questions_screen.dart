@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:examtrack/tests/question_result_screen.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
@@ -7,7 +6,7 @@ import '../../services/api_service.dart';
 class QuestionsScreen extends StatefulWidget {
   final int mockId;
   final String mockName;
-  final int timeLimit; // minutes
+  final int timeLimit;
 
   QuestionsScreen({
     required this.mockId,
@@ -27,6 +26,10 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   late int remainingSeconds;
   Timer? timer;
 
+  final Color primaryRed = Colors.redAccent;
+  final Color darkBackground = Colors.black;
+  final Color optionColor = const Color(0xFF2C2C2E);
+
   @override
   void initState() {
     super.initState();
@@ -36,7 +39,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   }
 
   void startTimer() {
-    timer = Timer.periodic(Duration(seconds: 1), (t) {
+    timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (remainingSeconds > 0) {
         setState(() => remainingSeconds--);
       } else {
@@ -67,8 +70,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 
   void selectAnswer(String answer) {
     setState(() => selectedAnswers[currentIndex] = answer);
-
-    Future.delayed(Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (currentIndex < questions.length - 1) {
         setState(() => currentIndex++);
       } else {
@@ -79,11 +81,9 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 
   void showResult() async {
     timer?.cancel();
-
     int score = 0;
     int totalMarks = 0;
 
-    // Safe calculation with null checks
     for (int i = 0; i < questions.length; i++) {
       int marks = int.tryParse(questions[i]['marks']?.toString() ?? "1") ?? 1;
       totalMarks += marks;
@@ -99,14 +99,25 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
     int timeTakenSeconds = widget.timeLimit * 60 - remainingSeconds;
     int timeTakenMinutes = (timeTakenSeconds / 60).ceil();
 
-    // Save result to backend
-    await ApiService.saveResult(widget.mockId, score, timeTakenMinutes);
+    await ApiService.saveResult(
+      widget.mockId,
+      score,
+      totalMarks,
+      timeTakenMinutes,
+      widget.mockName,
+    );
 
-    // Navigate to ResultScreen
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => ResultScreen(score: score, total: totalMarks),
+        builder:
+            (_) => ResultScreen(
+              score: score,
+              total: totalMarks,
+              mockId: widget.mockId,
+              title: widget.mockName,
+              timeTakenMinutes: timeTakenMinutes,
+            ),
       ),
     );
   }
@@ -120,247 +131,210 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: darkBackground,
       appBar: AppBar(
-        title: Text(widget.mockName),
+        backgroundColor: primaryRed,
+        title: Text(
+          widget.mockName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           Padding(
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             child: Center(
               child: Text(
                 formatTime(remainingSeconds),
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
         ],
       ),
-      body:
-          isLoading
-              ? Center(child: CircularProgressIndicator())
-              : questions.isEmpty
-              ? Center(child: Text("No questions available"))
-              : buildQuestionCard(),
-    );
-  }
-
-  Widget buildQuestionCard() {
-    final q = questions[currentIndex];
-    final options = List<String>.from(q['options'] ?? []);
-
-    return Padding(
-      padding: EdgeInsets.all(12),
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 4,
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Q${currentIndex + 1}: ${q['question_text'] ?? ""}",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 12),
-              ...options.map(
-                (opt) => RadioListTile<String>(
-                  value: opt,
-                  groupValue: selectedAnswers[currentIndex],
-                  onChanged: (val) {
-                    if (val != null) selectAnswer(val);
-                  },
-                  title: Text(opt),
-                ),
-              ),
-              Spacer(),
-              Text(
-                "Marks: ${q['marks'] ?? 1}",
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ),
+      body: SafeArea(
+        child:
+            isLoading
+                ? const Center(
+                  child: CircularProgressIndicator(color: Colors.redAccent),
+                )
+                : questions.isEmpty
+                ? const Center(
+                  child: Text(
+                    "No questions available",
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                )
+                : buildQuestionLayout(),
       ),
     );
   }
+
+  Widget buildQuestionLayout() {
+    final q = questions[currentIndex];
+    final options = List<String>.from(q['options'] ?? []);
+
+    return Column(
+      children: [
+        LinearProgressIndicator(
+          value: 1 - (remainingSeconds / (widget.timeLimit * 60)),
+          backgroundColor: Colors.grey.shade800,
+          valueColor: AlwaysStoppedAnimation(primaryRed),
+          minHeight: 6,
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Question ${currentIndex + 1} of ${questions.length}",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        "Marks: ${q['marks'] ?? 1}",
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    q['question_text'] ?? "",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ...options.map((opt) {
+                    final isSelected = selectedAnswers[currentIndex] == opt;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: isSelected ? primaryRed : Colors.grey.shade700,
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        color:
+                            isSelected
+                                ? Colors.redAccent.withOpacity(0.2)
+                                : optionColor,
+                      ),
+                      child: RadioListTile<String>(
+                        value: opt,
+                        groupValue: selectedAnswers[currentIndex],
+                        onChanged: (val) {
+                          if (val != null) selectAnswer(val);
+                        },
+                        title: Text(
+                          opt,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color:
+                                isSelected ? Colors.redAccent : Colors.white70,
+                          ),
+                        ),
+                        activeColor: primaryRed,
+                      ),
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // ✅ FIXED: Added SafeArea wrapper for bottom buttons
+        // ✅ Proper SafeArea with padding for system navigation
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade900,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 6,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.arrow_back, size: 18),
+                    label: const Text("Previous"),
+                    onPressed:
+                        currentIndex > 0
+                            ? () => setState(() => currentIndex--)
+                            : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade700,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    icon: Icon(
+                      currentIndex == questions.length - 1
+                          ? Icons.check
+                          : Icons.arrow_forward,
+                      size: 18,
+                    ),
+                    label: Text(
+                      currentIndex == questions.length - 1 ? "Submit" : "Next",
+                    ),
+                    onPressed: () {
+                      if (currentIndex < questions.length - 1) {
+                        setState(() => currentIndex++);
+                      } else {
+                        showResult();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
-
-// import 'dart:async';
-// import 'package:examtrack/tests/question_result_screen.dart';
-// import 'package:flutter/material.dart';
-// import '../../services/api_service.dart';
-
-// class QuestionsScreen extends StatefulWidget {
-//   final int mockId;
-//   final String mockName;
-//   final int timeLimit; // minutes from mock screen
-
-//   QuestionsScreen({
-//     required this.mockId,
-//     required this.mockName,
-//     required this.timeLimit,
-//   });
-
-//   @override
-//   _QuestionsScreenState createState() => _QuestionsScreenState();
-// }
-
-// class _QuestionsScreenState extends State<QuestionsScreen> {
-//   bool isLoading = true;
-//   List questions = [];
-//   int currentIndex = 0;
-//   Map<int, String> selectedAnswers = {};
-
-//   late int remainingSeconds;
-//   Timer? timer;
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     remainingSeconds = widget.timeLimit * 60; // minutes → seconds
-//     startTimer();
-//     fetchQuestions();
-//   }
-
-//   void startTimer() {
-//     timer = Timer.periodic(Duration(seconds: 1), (t) {
-//       if (remainingSeconds > 0) {
-//         setState(() {
-//           remainingSeconds--;
-//         });
-//       } else {
-//         t.cancel();
-//         showResult(); // Auto-submit when time ends
-//       }
-//     });
-//   }
-
-//   String formatTime(int seconds) {
-//     int minutes = seconds ~/ 60;
-//     int secs = seconds % 60;
-//     return "${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}";
-//   }
-
-//   Future<void> fetchQuestions() async {
-//     try {
-//       final data = await ApiService.getQuestions(widget.mockId);
-//       setState(() {
-//         questions = data;
-//         isLoading = false;
-//       });
-//     } catch (e) {
-//       print('Error fetching questions: $e');
-//       setState(() {
-//         isLoading = false;
-//       });
-//     }
-//   }
-
-//   void selectAnswer(String answer) {
-//     setState(() {
-//       selectedAnswers[currentIndex] = answer;
-//     });
-
-//     Future.delayed(Duration(milliseconds: 300), () {
-//       if (currentIndex < questions.length - 1) {
-//         setState(() {
-//           currentIndex++;
-//         });
-//       } else {
-//         showResult();
-//       }
-//     });
-//   }
-
-//   void showResult() {
-//     timer?.cancel(); // stop timer
-//     int score = 0;
-//     for (int i = 0; i < questions.length; i++) {
-//       if (selectedAnswers[i] == questions[i]['correct_answer']) {
-//         score++;
-//       }
-//     }
-//     //result screen per navigate krna questions complete hone k bad
-//     Navigator.pushReplacement(
-//       context,
-//       MaterialPageRoute(
-//         builder: (_) => ResultScreen(score: score, total: questions.length),
-//       ),
-//     );
-//   }
-
-//   @override
-//   void dispose() {
-//     timer?.cancel();
-//     super.dispose();
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: Text(widget.mockName),
-//         actions: [
-//           Padding(
-//             padding: EdgeInsets.all(12),
-//             child: Center(
-//               child: Text(
-//                 formatTime(remainingSeconds),
-//                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-//               ),
-//             ),
-//           ),
-//         ],
-//       ),
-//       body:
-//           isLoading
-//               ? Center(child: CircularProgressIndicator())
-//               : questions.isEmpty
-//               ? Center(child: Text("No questions available"))
-//               : buildQuestionCard(),
-//     );
-//   }
-
-//   Widget buildQuestionCard() {
-//     final q = questions[currentIndex];
-//     final options = List<String>.from(q['options']);
-
-//     return Padding(
-//       padding: EdgeInsets.all(12),
-//       child: Card(
-//         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-//         elevation: 4,
-//         child: Padding(
-//           padding: EdgeInsets.all(16),
-//           child: Column(
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               Text(
-//                 "Q${currentIndex + 1}: ${q['question_text']}",
-//                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-//               ),
-//               SizedBox(height: 12),
-//               ...options.map((opt) {
-//                 return RadioListTile<String>(
-//                   value: opt,
-//                   groupValue: selectedAnswers[currentIndex],
-//                   onChanged: (value) {
-//                     if (value != null) {
-//                       selectAnswer(value);
-//                     }
-//                   },
-//                   title: Text(opt),
-//                 );
-//               }).toList(),
-//               Spacer(),
-//               Text(
-//                 "Marks: ${q['marks']}",
-//                 style: TextStyle(color: Colors.grey[600]),
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }

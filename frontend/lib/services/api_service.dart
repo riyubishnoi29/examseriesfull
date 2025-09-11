@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const baseUrl = "https://examseriesfull-2.onrender.com";
+  static const baseUrl = "https://rankyard.in";
 
   static const storage = FlutterSecureStorage();
 
@@ -100,11 +100,13 @@ class ApiService {
     await storage.delete(key: "token");
   }
 
-  // Save result
+  //save result
   static Future<bool> saveResult(
     int mockId,
     int score,
+    int totalMarks,
     int timeTakenMinutes,
+    String title,
   ) async {
     final token = await storage.read(key: "token");
     if (token == null) return false;
@@ -119,7 +121,9 @@ class ApiService {
       "user_id": userId,
       "mock_id": mockId,
       "score": score,
+      "total_marks": totalMarks,
       "time_taken_minutes": timeTakenMinutes,
+      "title": title,
     };
 
     final response = await http.post(
