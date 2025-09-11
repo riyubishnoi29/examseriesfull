@@ -4,12 +4,41 @@
 <head>
   <title>Editor Dashboard</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h2 { margin-bottom: 10px; }
-    form { margin-top: 20px; }
-    input, textarea { display: block; width: 300px; margin-bottom: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-    button { padding: 8px 15px; border: none; background: #007bff; color: white; cursor: pointer; border-radius: 4px; }
-    button:hover { background: #0056b3; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    form {
+      margin-top: 20px;
+    }
+
+    input,
+    textarea {
+      display: block;
+      width: 300px;
+      margin-bottom: 10px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    button {
+      padding: 8px 15px;
+      border: none;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
   </style>
 </head>
 
@@ -22,9 +51,13 @@
   <form id="mockForm">
     <input type="number" name="exam_id" placeholder="Exam ID" required>
     <input type="text" name="title" placeholder="Mock Title" required>
-    <textarea name="description" placeholder="Description"></textarea>
     <input type="number" name="total_marks" placeholder="Total Marks" required>
-    <input type="number" name="duration" placeholder="Duration (minutes)" required>
+    <input type="number" name="duration_minutes" placeholder="Duration (minutes)" required>
+    <select name="difficulty">
+      <option value="Easy">Easy</option>
+      <option value="Medium" selected>Medium</option>
+      <option value="Hard">Hard</option>
+    </select>
     <button type="submit">Submit Mock Test</button>
   </form>
 
@@ -51,40 +84,41 @@
     }
 
     // ✅ Add Mock Test (Status = Draft)
-    document.getElementById("mockForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
+   document.getElementById("mockForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
 
-      const data = {
-        exam_id: parseInt(formData.get("exam_id")),
-        title: formData.get("title"),
-        description: formData.get("description"),
-        total_marks: parseInt(formData.get("total_marks")),
-        duration: parseInt(formData.get("duration")),
-        status: "draft"
-      };
+  const data = {
+    exam_id: parseInt(formData.get("exam_id")),
+    title: formData.get("title"),
+    total_marks: parseInt(formData.get("total_marks")),
+    duration_minutes: parseInt(formData.get("duration_minutes")),
+    difficulty: formData.get("difficulty"),
+    status: "draft"
+  };
 
-      try {
-        const res = await fetch("https://rankyard.in/mock_tests", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify(data)
-        });
-
-        const result = await res.json();
-        if (res.ok) {
-          alert("✅ Mock Test saved as draft!");
-          e.target.reset();
-        } else {
-          alert("❌ Error: " + (result.error || "Something went wrong"));
-        }
-      } catch (err) {
-        alert("⚠️ Error: " + err.message);
-      }
+  try {
+    const res = await fetch("https://rankyard.in/mock_tests", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
     });
+
+    const result = await res.json();
+    if (res.ok) {
+      alert("✅ Mock Test saved as draft!");
+      e.target.reset();
+    } else {
+      alert("❌ Error: " + (result.error || "Something went wrong"));
+    }
+  } catch (err) {
+    alert("⚠️ Error: " + err.message);
+  }
+});
+
 
     // ✅ Add Question (Status = Draft)
     document.getElementById("questionForm").addEventListener("submit", async (e) => {
