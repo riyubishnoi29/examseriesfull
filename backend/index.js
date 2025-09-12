@@ -146,6 +146,17 @@ app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// ✅ Get mock tests by status (default = draft)
+app.get('/mock_tests', roleAuth(['admin', 'publisher']), async (req, res) => {
+  try {
+    const status = req.query.status || 'draft';
+    const [rows] = await pool.query('SELECT * FROM mock_tests WHERE status = ?', [status]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Update question status (approve/reject) - only admin/publisher
 app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req, res) => {
@@ -209,6 +220,32 @@ app.post('/mock_tests', roleAuth(['admin', 'editor']), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.patch('/mock_tests/:id/status', roleAuth(['admin', 'publisher']), async (req, res) => {
+  try {
+    const mockId = req.params.id;
+    const { status } = req.body;
+
+    let dbStatus;
+    const s = status.toLowerCase();
+    if (s === 'approved' || s === 'live') dbStatus = 'live';
+    else if (s === 'rejected' || s === 'draft') dbStatus = 'draft';
+    else return res.status(400).json({ error: "Invalid status" });
+
+    const [result] = await pool.query(
+      'UPDATE mock_tests SET status = ? WHERE id = ?',
+      [dbStatus, mockId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Mock test not found" });
+    }
+
+    res.json({ message: `Mock test ${dbStatus} successfully` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Publisher/Admin can publish mock test
 app.patch('/mock_tests/:id/publish', roleAuth(['admin', 'publisher']), async (req, res) => {
