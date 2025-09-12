@@ -18,7 +18,8 @@
     }
 
     input,
-    textarea {
+    textarea,
+    select {
       display: block;
       width: 300px;
       margin-bottom: 10px;
@@ -46,21 +47,35 @@
   <h2>Welcome, EDITOR!</h2>
   <button onclick="logout()">Logout</button>
 
-  <!-- ✅ Mock Test Form Added -->
+  <!-- ✅ Add Mock Test Section -->
   <h3>Add New Mock Test</h3>
   <form id="mockForm">
     <input type="number" name="exam_id" placeholder="Exam ID" required>
-    <input type="text" name="title" placeholder="Mock Title" required>
-    <input type="number" name="total_marks" placeholder="Total Marks" required>
+    <input type="text" name="title" placeholder="Mock Test Title" required>
     <input type="number" name="duration_minutes" placeholder="Duration (minutes)" required>
+
+    <!-- ✅ Secure Dropdown for Difficulty -->
     <select name="difficulty">
       <option value="Easy">Easy</option>
       <option value="Medium" selected>Medium</option>
       <option value="Hard">Hard</option>
     </select>
+
+    <input type="number" name="total_marks" placeholder="Total Marks" value="100">
+
+    <!-- ✅ Negative Marking -->
+    <input type="number" step="0.01" name="negative_marking" placeholder="Negative Marking (e.g. 0.25)">
+
+    <!-- ✅ Secure Dropdown for Status -->
+    <select name="status">
+      <option value="draft" selected>Draft</option>
+      <option value="live">Live</option>
+    </select>
+
     <button type="submit">Submit Mock Test</button>
   </form>
 
+  <!-- ✅ Add Question Section (unchanged) -->
   <h3>Add New Question</h3>
   <form id="questionForm">
     <input type="number" name="mock_id" placeholder="Mock ID" required>
@@ -83,7 +98,7 @@
       window.location.href = "admin_login.html";
     }
 
-    // ✅ Add Mock Test (Status = Draft)
+    // ✅ Add Mock Test
     document.getElementById("mockForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
@@ -91,10 +106,11 @@
       const data = {
         exam_id: parseInt(formData.get("exam_id")),
         title: formData.get("title"),
-        total_marks: parseInt(formData.get("total_marks")),
         duration_minutes: parseInt(formData.get("duration_minutes")),
-        difficulty: formData.get("difficulty"),
-        status: "draft"
+        difficulty: formData.get("difficulty") || "Medium",
+        total_marks: parseInt(formData.get("total_marks")) || 100,
+        negative_marking: formData.get("negative_marking") ? parseFloat(formData.get("negative_marking")) : null,
+        status: formData.get("status") || "draft"
       };
 
       try {
@@ -108,19 +124,26 @@
         });
 
         const result = await res.json();
+
+        if (res.status === 401) {
+          alert("Session expired! Please login again.");
+          localStorage.clear();
+          window.location.href = "admin_login.html";
+          return;
+        }
+
         if (res.ok) {
-          alert("✅ Mock Test saved as draft!");
+          alert("✅ Mock test created successfully!");
           e.target.reset();
         } else {
-          alert("❌ Error: " + (result.error || "Something went wrong"));
+          alert("❌ Error: " + (result.error || result.message || "Something went wrong"));
         }
       } catch (err) {
         alert("⚠️ Error: " + err.message);
       }
     });
 
-
-    // ✅ Add Question (Status = Draft)
+    // ✅ Add Question (same as before)
     document.getElementById("questionForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
@@ -150,11 +173,19 @@
         });
 
         const result = await res.json();
+
+        if (res.status === 401) {
+          alert("Session expired! Please login again.");
+          localStorage.clear();
+          window.location.href = "admin_login.html";
+          return;
+        }
+
         if (res.ok) {
           alert("✅ Question saved as draft!");
           e.target.reset();
         } else {
-          alert("❌ Error: " + (result.message || "Something went wrong"));
+          alert("❌ Error: " + (result.error || result.message || "Something went wrong"));
         }
       } catch (err) {
         alert("⚠️ Error: " + err.message);
@@ -167,5 +198,4 @@
     }
   </script>
 </body>
-
 </html>

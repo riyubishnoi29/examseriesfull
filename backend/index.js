@@ -191,16 +191,16 @@ app.get('/questions', roleAuth(['admin', 'publisher']), async (req, res) => {
 // Add new mock test (Admin + Editor)
 app.post('/mock_tests', roleAuth(['admin', 'editor']), async (req, res) => {
   try {
-    const { exam_id, title, duration_minutes, difficulty, total_marks } = req.body;
+    const { exam_id, title, duration_minutes, difficulty, total_marks, negative_marking } = req.body;
 
     if (!exam_id || !title || !duration_minutes) {
       return res.status(400).json({ error: "exam_id, title, duration_minutes required" });
     }
 
     const [result] = await pool.query(
-      `INSERT INTO mock_tests (exam_id, title, duration_minutes, difficulty, total_marks, status)
-       VALUES (?, ?, ?, ?, ?, 'draft')`,
-      [exam_id, title, duration_minutes, difficulty || 'Medium', total_marks || 100]
+      `INSERT INTO mock_tests (exam_id, title, duration_minutes, difficulty, total_marks, negative_marking, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'draft')`,
+      [exam_id, title, duration_minutes, difficulty || 'Medium', total_marks || 100, negative_marking || null]
     );
 
     res.json({ message: "✅ Mock test created (draft)", id: result.insertId });
