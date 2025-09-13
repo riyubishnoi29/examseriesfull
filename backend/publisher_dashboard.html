@@ -163,7 +163,7 @@
     // ✅ Approve/Reject Mock
     async function updateMockStatus(mockId, status) {
       try {
-        const res = await fetch(`https://rankyard.in/mock_tests/${mockId}`, {
+        const res = await fetch(`https://rankyard.in/mock_tests/${mockId}/status`, {  // ✅ /status add karo
           method: "PATCH",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -173,12 +173,13 @@
         });
 
         const result = await res.json();
-        alert(result.message || `Mock Test ${status}!`);
-        loadPendingMocks();
+        alert(result.message || `Mock test ${status}!`);
+        loadPendingMocks(); // reload drafts
       } catch (err) {
         alert("Error: " + err.message);
       }
     }
+
 
     function logout() {
       localStorage.clear();
