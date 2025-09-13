@@ -220,6 +220,7 @@ app.post('/mock_tests', roleAuth(['admin', 'editor']), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// Update mock test status (approve/reject) - only admin/publisher
 app.patch('/mock_tests/:id/status', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {
     const mockId = req.params.id;
@@ -246,25 +247,6 @@ app.patch('/mock_tests/:id/status', roleAuth(['admin', 'publisher']), async (req
   }
 });
 
-
-// Publisher/Admin can publish mock test
-app.patch('/mock_tests/:id/publish', roleAuth(['admin', 'publisher']), async (req, res) => {
-  try {
-    const testId = req.params.id;
-    const [result] = await pool.query(
-      'UPDATE mock_tests SET status = "live" WHERE id = ?',
-      [testId]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Mock test not found" });
-    }
-
-    res.json({ message: "🚀 Mock test published (live)" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // Delete question (Admin only)
 app.delete('/questions/:id', roleAuth(['admin']), async (req, res) => {

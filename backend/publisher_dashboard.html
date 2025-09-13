@@ -13,7 +13,7 @@
       margin-bottom: 10px;
     }
 
-    .question-card {
+    .card {
       border: 1px solid #ddd;
       padding: 10px;
       margin-bottom: 10px;
@@ -53,8 +53,13 @@
   <h2>Welcome, PUBLISHER!</h2>
   <button onclick="logout()">Logout</button>
 
+  <!-- ✅ Draft Questions -->
   <h3>Draft Questions for Review</h3>
   <div id="pendingQuestions"></div>
+
+  <!-- ✅ Draft Mock Tests -->
+  <h3>Draft Mock Tests for Review</h3>
+  <div id="pendingMocks"></div>
 
   <script>
     const token = localStorage.getItem("adminToken");
@@ -82,16 +87,16 @@
 
         data.forEach(q => {
           const card = document.createElement("div");
-          card.className = "question-card";
+          card.className = "card";
           const options = Array.isArray(q.options) ? q.options.join(", ") : q.options;
           card.innerHTML = `
             <p><b>Mock ID:</b> ${q.mock_id}</p>
             <p><b>Question:</b> ${q.question_text}</p>
             <p><b>Options:</b> ${options}</p>
             <p><b>Correct:</b> ${q.correct_answer}</p>
-           <button class="approve" onclick="updateQuestionStatus(${q.id}, 'approved')">Approved</button>
-           <button class="reject" onclick="updateQuestionStatus(${q.id}, 'rejected')">Rejected</button>
- `;
+            <button class="approve" onclick="updateQuestionStatus(${q.id}, 'approved')">Approve</button>
+            <button class="reject" onclick="updateQuestionStatus(${q.id}, 'rejected')">Reject</button>
+          `;
           container.appendChild(card);
         });
       } catch (err) {
@@ -99,7 +104,7 @@
       }
     }
 
-    // ✅ Approve or Reject Question
+    // ✅ Approve/Reject Question
     async function updateQuestionStatus(questionId, status) {
       try {
         const res = await fetch(`https://rankyard.in/questions/${questionId}/status`, {
@@ -108,12 +113,68 @@
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ status }) // ✅ Only 'draft' or 'live'
+          body: JSON.stringify({ status })
         });
 
         const result = await res.json();
         alert(result.message || `Question ${status}!`);
         loadPendingQuestions();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    }
+
+    // ✅ Fetch draft mocks
+    async function loadPendingMocks() {
+      try {
+        const res = await fetch("https://rankyard.in/mock_tests?status=draft", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        const data = await res.json();
+        const container = document.getElementById("pendingMocks");
+        container.innerHTML = "";
+
+        if (!data.length) {
+          container.innerHTML = "<p>No draft mock tests for review.</p>";
+          return;
+        }
+
+        data.forEach(m => {
+          const card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = `
+            <p><b>Exam ID:</b> ${m.exam_id}</p>
+            <p><b>Title:</b> ${m.title}</p>
+            <p><b>Duration:</b> ${m.duration_minutes} mins</p>
+            <p><b>Difficulty:</b> ${m.difficulty}</p>
+            <p><b>Total Marks:</b> ${m.total_marks}</p>
+            <p><b>Negative Marking:</b> ${m.negative_marking ?? 0}</p>
+            <button class="approve" onclick="updateMockStatus(${m.id}, 'live')">Publish</button>
+            <button class="reject" onclick="updateMockStatus(${m.id}, 'rejected')">Reject</button>
+          `;
+          container.appendChild(card);
+        });
+      } catch (err) {
+        alert("Error loading mocks: " + err.message);
+      }
+    }
+
+    // ✅ Approve/Reject Mock
+    async function updateMockStatus(mockId, status) {
+      try {
+        const res = await fetch(`https://rankyard.in/mock_tests/${mockId}`, {
+          method: "PATCH",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ status })
+        });
+
+        const result = await res.json();
+        alert(result.message || `Mock Test ${status}!`);
+        loadPendingMocks();
       } catch (err) {
         alert("Error: " + err.message);
       }
@@ -126,6 +187,7 @@
 
     // Load drafts on page load
     loadPendingQuestions();
+    loadPendingMocks();
   </script>
 </body>
 
