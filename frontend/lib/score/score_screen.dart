@@ -1,8 +1,8 @@
-import 'package:examtrack/score/score_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../model/result_model.dart';
+import 'score_details_screen.dart';
 
 class ScoreScreen extends StatefulWidget {
   const ScoreScreen({super.key});
@@ -30,23 +30,21 @@ class _ScoreScreenState extends State<ScoreScreen> {
 
   Icon getPerformanceIcon(int score, int total) {
     double percent = total > 0 ? (score / total) * 100 : 0;
-    if (percent >= 80) {
+    if (percent >= 80)
       return const Icon(Icons.emoji_events, color: Colors.amber, size: 28);
-    } else if (percent >= 50) {
+    if (percent >= 50)
       return const Icon(
         Icons.emoji_events,
         color: Colors.orangeAccent,
         size: 28,
       );
-    } else if (percent > 0) {
+    if (percent > 0)
       return const Icon(
         Icons.sentiment_dissatisfied,
         color: Color(0xFFFF3B30),
         size: 28,
       );
-    } else {
-      return const Icon(Icons.lock, color: Colors.grey, size: 28);
-    }
+    return const Icon(Icons.lock, color: Colors.grey, size: 28);
   }
 
   @override
@@ -85,7 +83,17 @@ class _ScoreScreenState extends State<ScoreScreen> {
             );
           }
 
-          final results = snapshot.data!;
+          // ✅ Remove duplicates based on mockId
+          final results = snapshot.data!.fold<List<ResultModel>>([], (
+            previousValue,
+            element,
+          ) {
+            if (!previousValue.any((r) => r.mockId == element.mockId)) {
+              previousValue.add(element);
+            }
+            return previousValue;
+          });
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: results.length,
@@ -115,7 +123,7 @@ class _ScoreScreenState extends State<ScoreScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Row: Circular progress + test info
+                    // Circular progress + test info
                     Row(
                       children: [
                         Stack(
@@ -188,7 +196,7 @@ class _ScoreScreenState extends State<ScoreScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Attempted / Not Attempted Boxes
+                    // Attempted / Not Attempted
                     Row(
                       children: [
                         _attemptBox(

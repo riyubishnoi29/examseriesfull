@@ -3,17 +3,19 @@ import '../score/score_screen.dart';
 import '../services/api_service.dart';
 
 class ResultScreen extends StatefulWidget {
+  final int score;
+  final int total;
   final int mockId;
   final String title;
   final int timeTakenMinutes;
-  final List<Map<String, dynamic>> answers; // ✅ Answers list pass karenge
 
   const ResultScreen({
     super.key,
+    required this.score,
+    required this.total,
     required this.mockId,
     required this.title,
     required this.timeTakenMinutes,
-    required this.answers,
   });
 
   @override
@@ -21,33 +23,31 @@ class ResultScreen extends StatefulWidget {
 }
 
 class _ResultScreenState extends State<ResultScreen> {
-  bool _isSubmitting = false;
-  int? _finalScore;
-  int? _totalMarks;
+  bool _isSaving = false;
+  bool _alreadySaved = false; // ✅ Prevent duplicate save
 
-  Future<void> _submitTest(BuildContext context, VoidCallback onSuccess) async {
-    if (_isSubmitting) return;
-    setState(() => _isSubmitting = true);
+  Future<void> _saveResult(BuildContext context, VoidCallback onSuccess) async {
+    if (_isSaving || _alreadySaved) return;
+    setState(() => _isSaving = true);
 
     try {
-      final result = await ApiService.submitTest(
-        mockId: widget.mockId,
-        answers: widget.answers,
-        timeTakenMinutes: widget.timeTakenMinutes,
+      final isSaved = await ApiService.saveResult(
+        widget.mockId,
+        widget.score,
+        widget.total,
+        widget.timeTakenMinutes,
+        widget.title,
       );
-
-      setState(() {
-        _finalScore = result["final_score"];
-        _totalMarks = result["total_marks"];
-      });
-
-      onSuccess();
+      if (isSaved) {
+        _alreadySaved = true; // ✅ Mark as saved
+        onSuccess();
+      }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error submitting test: $e")));
+      ).showSnackBar(SnackBar(content: Text("Error saving result: $e")));
     } finally {
-      setState(() => _isSubmitting = false);
+      setState(() => _isSaving = false);
     }
   }
 
@@ -62,7 +62,6 @@ class _ResultScreenState extends State<ResultScreen> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         automaticallyImplyLeading: false,
-        elevation: 2,
       ),
       body: Center(
         child: Padding(
@@ -72,13 +71,6 @@ class _ResultScreenState extends State<ResultScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF1E1E1E),
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.redAccent.withOpacity(0.4),
-                  blurRadius: 8,
-                  offset: const Offset(2, 4),
-                ),
-              ],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -104,9 +96,7 @@ class _ResultScreenState extends State<ResultScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _finalScore != null
-                      ? "$_finalScore / $_totalMarks"
-                      : "Calculating...",
+                  "${widget.score} / ${widget.total}",
                   style: const TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.bold,
@@ -123,9 +113,9 @@ class _ResultScreenState extends State<ResultScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed:
-                        _isSubmitting
+                        _isSaving || _alreadySaved
                             ? null
-                            : () => _submitTest(
+                            : () => _saveResult(
                               context,
                               () => Navigator.popUntil(
                                 context,
@@ -134,16 +124,8 @@ class _ResultScreenState extends State<ResultScreen> {
                             ),
                     icon: const Icon(Icons.home, color: Colors.white),
                     label: Text(
-                      _isSubmitting ? "Submitting..." : "Back to Home",
+                      _isSaving ? "Saving..." : "Back to Home",
                       style: const TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEF4444),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 3,
                     ),
                   ),
                 ),
@@ -152,9 +134,9 @@ class _ResultScreenState extends State<ResultScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed:
-                        _isSubmitting
+                        _isSaving || _alreadySaved
                             ? null
-                            : () => _submitTest(
+                            : () => _saveResult(
                               context,
                               () => Navigator.push(
                                 context,
@@ -165,16 +147,8 @@ class _ResultScreenState extends State<ResultScreen> {
                             ),
                     icon: const Icon(Icons.bar_chart, color: Colors.white),
                     label: Text(
-                      _isSubmitting ? "Submitting..." : "View All Scores",
+                      _isSaving ? "Saving..." : "View All Scores",
                       style: const TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[800],
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
                     ),
                   ),
                 ),

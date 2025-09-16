@@ -155,42 +155,4 @@ class ApiService {
       throw Exception("Failed to load results");
     }
   }
-
-  // --- Submit Test API ---
-  // Yeh answers bhejkar backend pe score calculate karega
-  static Future<Map<String, dynamic>> submitTest({
-    required int mockId,
-    required List<Map<String, dynamic>> answers,
-    required int timeTakenMinutes,
-  }) async {
-    final token = await storage.read(key: "token");
-    if (token == null) throw Exception("User not logged in");
-
-    // Decode token to get user_id
-    final payload = jsonDecode(
-      ascii.decode(base64.decode(base64.normalize(token.split(".")[1]))),
-    );
-    final userId = payload['id'];
-
-    final response = await http.post(
-      Uri.parse('$baseUrl/mock_tests/$mockId/submit'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: json.encode({
-        "user_id": userId,
-        "answers": answers,
-        "time_taken_minutes": timeTakenMinutes,
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      return json.decode(
-        response.body,
-      ); // final_score, correct, wrong return hoga
-    } else {
-      throw Exception('Failed to submit test: ${response.body}');
-    }
-  }
 }
