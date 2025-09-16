@@ -7,7 +7,7 @@ class ScoreScreen extends StatefulWidget {
   const ScoreScreen({super.key});
 
   @override
-  State<ScoreScreen> createState() => _ScoreScreenState();
+  _ScoreScreenState createState() => _ScoreScreenState();
 }
 
 class _ScoreScreenState extends State<ScoreScreen> {
@@ -19,6 +19,7 @@ class _ScoreScreenState extends State<ScoreScreen> {
     futureResults = ApiService.getUserResults();
   }
 
+  // Color logic based on score
   Color getBorderColor(int score, int total) {
     double percent = total > 0 ? (score / total) * 100 : 0;
     if (percent >= 80) return Colors.greenAccent;
@@ -33,7 +34,7 @@ class _ScoreScreenState extends State<ScoreScreen> {
       return const Icon(Icons.emoji_events, color: Colors.amber, size: 28);
     } else if (percent >= 50) {
       return const Icon(
-        Icons.military_tech,
+        Icons.emoji_events,
         color: Colors.orangeAccent,
         size: 28,
       );
@@ -71,14 +72,14 @@ class _ScoreScreenState extends State<ScoreScreen> {
           } else if (snapshot.hasError) {
             return Center(
               child: Text(
-                "Error loading results: ${snapshot.error}",
-                style: const TextStyle(color: Colors.redAccent, fontSize: 16),
+                "Error: ${snapshot.error}",
+                style: const TextStyle(color: Colors.redAccent),
               ),
             );
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(
               child: Text(
-                "No test results found.",
+                "No results yet.",
                 style: TextStyle(fontSize: 16, color: Colors.white70),
               ),
             );
@@ -97,9 +98,7 @@ class _ScoreScreenState extends State<ScoreScreen> {
                 'EEE, MMM d',
               ).format(r.dateTaken.toLocal());
 
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
+              return Container(
                 margin: const EdgeInsets.symmetric(vertical: 10),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -108,8 +107,8 @@ class _ScoreScreenState extends State<ScoreScreen> {
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.3),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
@@ -124,10 +123,10 @@ class _ScoreScreenState extends State<ScoreScreen> {
                           height: 70,
                           child: CircularProgressIndicator(
                             value: percent,
-                            strokeWidth: 6,
+                            strokeWidth: 7,
                             backgroundColor: Colors.grey[800],
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              borderColor,
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Color(0xFFFF3B30),
                             ),
                           ),
                         ),
@@ -142,7 +141,7 @@ class _ScoreScreenState extends State<ScoreScreen> {
                       ],
                     ),
                     const SizedBox(width: 16),
-                    // Test Details
+                    // Test Info
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,7 +156,9 @@ class _ScoreScreenState extends State<ScoreScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            "Score: ${r.score}/${r.totalMarks} • Time: ${r.timeTakenMinutes} min",
+                            r.score > 0
+                                ? "Score: ${r.score}/${r.totalMarks} • Time: ${r.timeTakenMinutes} min"
+                                : "Test not attempted",
                             style: const TextStyle(
                               fontSize: 14,
                               color: Colors.white70,
