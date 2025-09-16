@@ -7,7 +7,7 @@ class ScoreScreen extends StatefulWidget {
   const ScoreScreen({super.key});
 
   @override
-  _ScoreScreenState createState() => _ScoreScreenState();
+  State<ScoreScreen> createState() => _ScoreScreenState();
 }
 
 class _ScoreScreenState extends State<ScoreScreen> {
@@ -19,22 +19,21 @@ class _ScoreScreenState extends State<ScoreScreen> {
     futureResults = ApiService.getUserResults();
   }
 
-  // Color logic based on score
   Color getBorderColor(int score, int total) {
-    double percent = (score / total) * 100;
+    double percent = total > 0 ? (score / total) * 100 : 0;
     if (percent >= 80) return Colors.greenAccent;
     if (percent >= 50) return Colors.orangeAccent;
-    if (percent > 0) return const Color(0xFFFF3B30); // Red for low score
+    if (percent > 0) return const Color(0xFFFF3B30);
     return Colors.grey;
   }
 
   Icon getPerformanceIcon(int score, int total) {
-    double percent = (score / total) * 100;
+    double percent = total > 0 ? (score / total) * 100 : 0;
     if (percent >= 80) {
       return const Icon(Icons.emoji_events, color: Colors.amber, size: 28);
     } else if (percent >= 50) {
       return const Icon(
-        Icons.emoji_events,
+        Icons.military_tech,
         color: Colors.orangeAccent,
         size: 28,
       );
@@ -72,14 +71,14 @@ class _ScoreScreenState extends State<ScoreScreen> {
           } else if (snapshot.hasError) {
             return Center(
               child: Text(
-                "Error: ${snapshot.error}",
-                style: const TextStyle(color: Colors.redAccent),
+                "Error loading results: ${snapshot.error}",
+                style: const TextStyle(color: Colors.redAccent, fontSize: 16),
               ),
             );
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(
               child: Text(
-                "No results yet.",
+                "No test results found.",
                 style: TextStyle(fontSize: 16, color: Colors.white70),
               ),
             );
@@ -98,7 +97,9 @@ class _ScoreScreenState extends State<ScoreScreen> {
                 'EEE, MMM d',
               ).format(r.dateTaken.toLocal());
 
-              return Container(
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
                 margin: const EdgeInsets.symmetric(vertical: 10),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -107,8 +108,8 @@ class _ScoreScreenState extends State<ScoreScreen> {
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
@@ -123,10 +124,10 @@ class _ScoreScreenState extends State<ScoreScreen> {
                           height: 70,
                           child: CircularProgressIndicator(
                             value: percent,
-                            strokeWidth: 7,
+                            strokeWidth: 6,
                             backgroundColor: Colors.grey[800],
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFFFF3B30),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              borderColor,
                             ),
                           ),
                         ),
@@ -141,7 +142,7 @@ class _ScoreScreenState extends State<ScoreScreen> {
                       ],
                     ),
                     const SizedBox(width: 16),
-                    // Test Info
+                    // Test Details
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,9 +157,7 @@ class _ScoreScreenState extends State<ScoreScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            r.score > 0
-                                ? "Score: ${r.score}/${r.totalMarks} • Time: ${r.timeTakenMinutes} min"
-                                : "Test not attempted",
+                            "Score: ${r.score}/${r.totalMarks} • Time: ${r.timeTakenMinutes} min",
                             style: const TextStyle(
                               fontSize: 14,
                               color: Colors.white70,

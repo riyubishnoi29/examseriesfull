@@ -2,43 +2,61 @@ import 'package:flutter/material.dart';
 import '../score/score_screen.dart';
 import '../services/api_service.dart';
 
-class ResultScreen extends StatelessWidget {
-  final int score;
-  final int total;
-  final int mockId; // ✅ added
-  final String title; // ✅ added
+class ResultScreen extends StatefulWidget {
+  final int mockId;
+  final String title;
   final int timeTakenMinutes;
+  final List<Map<String, dynamic>> answers; // ✅ Answers list pass karenge
 
-  ResultScreen({
-    required this.score,
-    required this.total,
+  const ResultScreen({
+    super.key,
     required this.mockId,
     required this.title,
     required this.timeTakenMinutes,
+    required this.answers,
   });
 
-  Future<void> _saveResult(BuildContext context) async {
+  @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  bool _isSubmitting = false;
+  int? _finalScore;
+  int? _totalMarks;
+
+  Future<void> _submitTest(BuildContext context, VoidCallback onSuccess) async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+
     try {
-      await ApiService.saveResult(
-        mockId,
-        score,
-        total,
-        timeTakenMinutes,
-        title,
+      final result = await ApiService.submitTest(
+        mockId: widget.mockId,
+        answers: widget.answers,
+        timeTakenMinutes: widget.timeTakenMinutes,
       );
+
+      setState(() {
+        _finalScore = result["final_score"];
+        _totalMarks = result["total_marks"];
+      });
+
+      onSuccess();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error saving result: $e")));
+      ).showSnackBar(SnackBar(content: Text("Error submitting test: $e")));
+    } finally {
+      setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Dark background
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFEF4444), // Deep red
+        backgroundColor: const Color(0xFFEF4444),
         title: const Text(
           "Test Result",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -67,7 +85,7 @@ class ResultScreen extends StatelessWidget {
               children: [
                 const Icon(Icons.emoji_events, size: 60, color: Colors.amber),
                 const SizedBox(height: 16),
-                Text(
+                const Text(
                   "Test Completed!",
                   style: TextStyle(
                     fontSize: 28,
@@ -86,8 +104,10 @@ class ResultScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "$score / $total",
-                  style: TextStyle(
+                  _finalScore != null
+                      ? "$_finalScore / $_totalMarks"
+                      : "Calculating...",
+                  style: const TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.bold,
                     color: Colors.greenAccent,
@@ -95,21 +115,27 @@ class ResultScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "Time Taken: $timeTakenMinutes min",
+                  "Time Taken: ${widget.timeTakenMinutes} min",
                   style: TextStyle(fontSize: 16, color: Colors.grey[400]),
                 ),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () async {
-                      await _saveResult(context);
-                      Navigator.popUntil(context, (route) => route.isFirst);
-                    },
+                    onPressed:
+                        _isSubmitting
+                            ? null
+                            : () => _submitTest(
+                              context,
+                              () => Navigator.popUntil(
+                                context,
+                                (route) => route.isFirst,
+                              ),
+                            ),
                     icon: const Icon(Icons.home, color: Colors.white),
-                    label: const Text(
-                      "Back to Home",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    label: Text(
+                      _isSubmitting ? "Submitting..." : "Back to Home",
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFEF4444),
@@ -125,17 +151,22 @@ class ResultScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () async {
-                      await _saveResult(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => ScoreScreen()),
-                      );
-                    },
+                    onPressed:
+                        _isSubmitting
+                            ? null
+                            : () => _submitTest(
+                              context,
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ScoreScreen(),
+                                ),
+                              ),
+                            ),
                     icon: const Icon(Icons.bar_chart, color: Colors.white),
-                    label: const Text(
-                      "View All Scores",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    label: Text(
+                      _isSubmitting ? "Submitting..." : "View All Scores",
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey[800],

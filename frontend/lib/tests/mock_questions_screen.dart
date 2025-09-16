@@ -1,21 +1,23 @@
 import 'dart:async';
-import 'package:examtrack/tests/question_result_screen.dart';
+import 'package:examtrack/tests/question_result_screen.dart' show ResultScreen;
 import 'package:flutter/material.dart';
+
 import '../../services/api_service.dart';
 
 class QuestionsScreen extends StatefulWidget {
   final int mockId;
   final String mockName;
-  final int timeLimit;
+  final int timeLimit; // in minutes
 
-  QuestionsScreen({
+  const QuestionsScreen({
+    super.key,
     required this.mockId,
     required this.mockName,
     required this.timeLimit,
   });
 
   @override
-  _QuestionsScreenState createState() => _QuestionsScreenState();
+  State<QuestionsScreen> createState() => _QuestionsScreenState();
 }
 
 class _QuestionsScreenState extends State<QuestionsScreen> {
@@ -25,6 +27,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   Map<int, String> selectedAnswers = {};
   late int remainingSeconds;
   Timer? timer;
+  bool isSubmitting = false;
 
   final Color primaryRed = Colors.redAccent;
   final Color darkBackground = Colors.black;
@@ -63,60 +66,72 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error fetching questions: $e');
+      print("Error fetching questions: $e");
       setState(() => isLoading = false);
     }
   }
 
   void selectAnswer(String answer) {
     setState(() => selectedAnswers[currentIndex] = answer);
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (currentIndex < questions.length - 1) {
-        setState(() => currentIndex++);
-      } else {
-        showResult();
-      }
-    });
   }
 
   void showResult() async {
+    if (isSubmitting) return;
+    setState(() => isSubmitting = true);
+
     timer?.cancel();
     int score = 0;
     int totalMarks = 0;
 
+    double negativeMarking = 0.0;
+    if (questions.isNotEmpty && questions[0]["negative_marking"] != null) {
+      negativeMarking =
+          double.tryParse(questions[0]["negative_marking"].toString()) ?? 0.0;
+    }
+
     for (int i = 0; i < questions.length; i++) {
-      int marks = int.tryParse(questions[i]['marks']?.toString() ?? "1") ?? 1;
+      int marks = int.tryParse(questions[i]["marks"].toString()) ?? 1;
       totalMarks += marks;
 
-      final correctAnswer = questions[i]['correct_answer']?.toString() ?? "";
-      final selectedAnswer = selectedAnswers[i] ?? "";
+      final correct = questions[i]["correct_answer"].toString();
+      final selected = selectedAnswers[i] ?? "";
 
-      if (selectedAnswer == correctAnswer) {
+      if (selected == correct) {
         score += marks;
+      } else if (selected.isNotEmpty && negativeMarking > 0) {
+        score -= negativeMarking.toInt();
       }
     }
 
-    int timeTakenSeconds = widget.timeLimit * 60 - remainingSeconds;
-    int timeTakenMinutes = (timeTakenSeconds / 60).ceil();
+    int timeTaken = widget.timeLimit * 60 - remainingSeconds;
+    int timeTakenMin = (timeTaken / 60).ceil();
 
     await ApiService.saveResult(
       widget.mockId,
       score,
       totalMarks,
-      timeTakenMinutes,
+      timeTakenMin,
       widget.mockName,
     );
 
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder:
             (_) => ResultScreen(
-              score: score,
-              total: totalMarks,
               mockId: widget.mockId,
               title: widget.mockName,
-              timeTakenMinutes: timeTakenMinutes,
+              timeTakenMinutes: timeTakenMin,
+              answers:
+                  selectedAnswers.entries
+                      .map(
+                        (entry) => {
+                          "questionIndex": entry.key,
+                          "selectedAnswer": entry.value,
+                        },
+                      )
+                      .toList(),
             ),
       ),
     );
@@ -134,10 +149,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
       backgroundColor: darkBackground,
       appBar: AppBar(
         backgroundColor: primaryRed,
-        title: Text(
-          widget.mockName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text(widget.mockName),
         actions: [
           Padding(
             padding: const EdgeInsets.all(12),
@@ -164,7 +176,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                 ? const Center(
                   child: Text(
                     "No questions available",
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: TextStyle(color: Colors.white70),
                   ),
                 )
                 : buildQuestionLayout(),
@@ -174,7 +186,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 
   Widget buildQuestionLayout() {
     final q = questions[currentIndex];
-    final options = List<String>.from(q['options'] ?? []);
+    final options = List<String>.from(q["options"] ?? []);
 
     return Column(
       children: [
@@ -191,33 +203,17 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Question ${currentIndex + 1} of ${questions.length}",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        "Marks: ${q['marks'] ?? 1}",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.redAccent,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
                   Text(
-                    q['question_text'] ?? "",
+                    "Question ${currentIndex + 1} of ${questions.length}",
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    q["question_text"] ?? "",
                     style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -245,7 +241,6 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                         title: Text(
                           opt,
                           style: TextStyle(
-                            fontSize: 16,
                             color:
                                 isSelected ? Colors.redAccent : Colors.white70,
                           ),
@@ -259,78 +254,40 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
             ),
           ),
         ),
-        // ✅ FIXED: Added SafeArea wrapper for bottom buttons
-        // ✅ Proper SafeArea with padding for system navigation
         SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade900,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
-                    blurRadius: 6,
-                    offset: const Offset(0, -2),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton.icon(
+                  onPressed:
+                      currentIndex > 0
+                          ? () => setState(() => currentIndex--)
+                          : null,
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text("Previous"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade700,
                   ),
-                ],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.arrow_back, size: 18),
-                    label: const Text("Previous"),
-                    onPressed:
-                        currentIndex > 0
-                            ? () => setState(() => currentIndex--)
-                            : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade700,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
+                ),
+                ElevatedButton.icon(
+                  onPressed:
+                      currentIndex < questions.length - 1
+                          ? () => setState(() => currentIndex++)
+                          : showResult,
+                  icon: Icon(
+                    currentIndex == questions.length - 1
+                        ? Icons.check
+                        : Icons.arrow_forward,
                   ),
-                  ElevatedButton.icon(
-                    icon: Icon(
-                      currentIndex == questions.length - 1
-                          ? Icons.check
-                          : Icons.arrow_forward,
-                      size: 18,
-                    ),
-                    label: Text(
-                      currentIndex == questions.length - 1 ? "Submit" : "Next",
-                    ),
-                    onPressed: () {
-                      if (currentIndex < questions.length - 1) {
-                        setState(() => currentIndex++);
-                      } else {
-                        showResult();
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryRed,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
+                  label: Text(
+                    currentIndex == questions.length - 1 ? "Submit" : "Next",
                   ),
-                ],
-              ),
+                  style: ElevatedButton.styleFrom(backgroundColor: primaryRed),
+                ),
+              ],
             ),
           ),
         ),

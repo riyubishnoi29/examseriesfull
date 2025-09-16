@@ -123,6 +123,85 @@ app.post('/results', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// ✅ Submit mock test with negative marking
+app.post('/mock_tests/:mockId/submit', auth, async (req, res) => {
+  try {
+    const mockId = req.params.mockId;
+    const { user_id, answers, time_taken_minutes } = req.body;
+
+    if (!user_id || !answers || !Array.isArray(answers)) {
+      return res.status(400).json({ error: "user_id and answers array required" });
+    }
+
+    // 1️⃣ Get mock test details (to read negative_marking)
+    const [mockTestRows] = await pool.query(
+      "SELECT negative_marking FROM mock_tests WHERE id = ?",
+      [mockId]
+    );
+    if (!mockTestRows.length) return res.status(404).json({ error: "Mock test not found" });
+
+    const negativeMarking = mockTestRows[0].negative_marking || 0;
+
+    // 2️⃣ Get all questions for this mock test
+    const [questions] = await pool.query(
+      "SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?",
+      [mockId]
+    );
+
+    if (!questions.length) {
+      return res.status(400).json({ error: "No questions found for this mock test" });
+    }
+
+    // Convert answers array to a Map for quick lookup
+    const userAnswers = new Map(answers.map(a => [a.question_id, a.answer]));
+
+    // 3️⃣ Calculate score
+    let score = 0;
+    let correctCount = 0;
+    let wrongCount = 0;
+    let skippedCount = 0;
+
+    for (let q of questions) {
+      const userAns = userAnswers.get(q.id);
+
+      if (!userAns) {
+        skippedCount++;
+        continue; // user skipped
+      }
+
+      if (userAns === q.correct_answer) {
+        score += q.marks;      // correct
+        correctCount++;
+      } else {
+        score -= negativeMarking; // wrong answer
+        wrongCount++;
+      }
+    }
+
+    // 4️⃣ Save result
+    const [result] = await pool.query(
+      `INSERT INTO results (user_id, mock_id, score, time_taken_minutes)
+       VALUES (?, ?, ?, ?)`,
+      [user_id, mockId, score, time_taken_minutes || null]
+    );
+
+    // 5️⃣ Return full result summary
+    res.json({
+      message: "✅ Test submitted successfully",
+      result_id: result.insertId,
+      total_questions: questions.length,
+      correct: correctCount,
+      wrong: wrongCount,
+      skipped: skippedCount,
+      final_score: score
+    });
+
+  } catch (err) {
+    console.error("SUBMIT TEST ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Add new question (editor + admin allowed)
 app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
   try {
