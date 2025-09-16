@@ -284,57 +284,38 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// Simple GET API to fetch result + question attempts
-app.get('/api/results/:userId/:mockId', async (req, res) => {
-  const { userId, mockId } = req.params;
 
-  try {
-    // 1️⃣ Fetch the latest result for user + mock
-    const [results] = await pool.query(
-      `SELECT * FROM results WHERE user_id = ? AND mock_id = ? ORDER BY id DESC LIMIT 1`,
-      [userId, mockId]
-    );
+// result ke andar ka question-wise data
+app.get('/result-details/:result_id', async (req, res) => {
+    const { result_id } = req.params;
+    try {
+        const [resultData] = await db.query(`
+            SELECT r.id AS result_id, r.user_id, r.mock_id, m.title AS mock_title,
+                   r.score, r.time_taken_minutes, r.date_taken, m.total_marks
+            FROM results r
+            JOIN mock_tests m ON r.mock_id = m.id
+            WHERE r.id = ?
+        `, [result_id]);
 
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'Result not found' });
+        if (resultData.length === 0) {
+            return res.status(404).json({ error: 'Result not found' });
+        }
+
+        const [questionAttempts] = await db.query(`
+            SELECT qa.id AS attempt_id, q.id AS question_id, q.question_text, q.correct_answer,
+                   qa.attempted_answer, qa.is_correct
+            FROM question_attempts qa
+            JOIN questions q ON qa.question_id = q.id
+            WHERE qa.result_id = ?
+        `, [result_id]);
+
+        res.json({
+            result: resultData[0],
+            questions: questionAttempts
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    const result = results[0];
-
-    // 2️⃣ Fetch all questions + user's attempt
-    const [questions] = await pool.query(
-      `SELECT q.id AS question_id, q.question_text AS question, q.correct_answer,
-              qa.attempted_answer, qa.is_correct
-       FROM questions q
-       LEFT JOIN question_attempts qa
-       ON q.id = qa.question_id AND qa.result_id = ?
-       WHERE q.mock_id = ?`,
-      [result.id, mockId]
-    );
-
-    // 3️⃣ Build JSON response
-    const response = {
-      id: result.id,
-      mock_id: result.mock_id,
-      title: result.title || 'Mock Test',
-      score: result.score,
-      total_marks: result.total_marks,
-      time_taken_minutes: result.time_taken_minutes,
-      date_taken: result.date_taken,
-      questions: questions.map(q => ({
-        question: q.question,
-        correct_answer: q.correct_answer,
-        attempted_answer: q.attempted_answer,
-        is_correct: q.is_correct === 1, // convert tinyint(1) to boolean
-      })),
-    };
-
-    res.json(response);
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
 });
 
 
