@@ -154,5 +154,17 @@ class ApiService {
     } else {
       throw Exception("Failed to load results");
     }
+  } // Fetch result details by resultId
+
+  static Future<Map<String, dynamic>> fetchResultDetails(int resultId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/result-details/$resultId'),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception("Failed to load result details");
+    }
   }
 }

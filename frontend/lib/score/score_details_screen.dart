@@ -1,132 +1,87 @@
+import 'package:examtrack/services/api_service.dart';
 import 'package:flutter/material.dart';
-import '../model/result_model.dart';
 
-class DetailedReportScreen extends StatelessWidget {
-  final ResultModel result;
+class ResultDetailsScreen extends StatefulWidget {
+  final int resultId;
+  const ResultDetailsScreen({super.key, required this.resultId});
 
-  const DetailedReportScreen({super.key, required this.result});
+  @override
+  State<ResultDetailsScreen> createState() => _ResultDetailsScreenState();
+}
+
+class _ResultDetailsScreenState extends State<ResultDetailsScreen> {
+  late Future<Map<String, dynamic>> futureResultDetails;
+
+  @override
+  void initState() {
+    super.initState();
+    futureResultDetails = ApiService.fetchResultDetails(widget.resultId);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
-        elevation: 0,
-        title: Text(
-          "${result.title} - Detailed Report",
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: result.questions.length,
-        itemBuilder: (context, index) {
-          final q = result.questions[index];
-
-          // Determine box color & icon
-          Color boxColor;
-          Icon? icon;
-          if (q.attemptedAnswer == null) {
-            boxColor = Colors.grey.shade800;
-            icon = const Icon(Icons.remove, color: Colors.white70);
-          } else if (q.isCorrect) {
-            boxColor = Colors.green.shade700;
-            icon = const Icon(Icons.check, color: Colors.white);
-          } else {
-            boxColor = Colors.red.shade700;
-            icon = const Icon(Icons.close, color: Colors.white);
+      appBar: AppBar(title: const Text("Result Details")),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: futureResultDetails,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          } else if (!snapshot.hasData || snapshot.data == null) {
+            return const Center(child: Text("No Data Available"));
           }
 
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 8),
+          final result = snapshot.data!['result'];
+          final questions = snapshot.data!['questions'] as List<dynamic>;
+
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: boxColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Question text
-                Text(
-                  "${index + 1}. ${q.question}",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
+                // Result Summary Card
+                Card(
+                  child: ListTile(
+                    title: Text(
+                      result['mock_title'],
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "Score: ${result['score']}/${result['total_marks']}\nTime: ${result['time_taken_minutes']} mins",
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                // Attempted answer
-                if (q.attemptedAnswer != null)
-                  Row(
-                    children: [
-                      const Text(
-                        "Your Answer: ",
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                const SizedBox(height: 20),
+
+                // Questions Attempted List
+                const Text(
+                  "Questions Attempted",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                ...questions.map(
+                  (q) => Card(
+                    color:
+                        q['is_correct'] ? Colors.green[100] : Colors.red[100],
+                    child: ListTile(
+                      title: Text(q['question_text']),
+                      subtitle: Text(
+                        "Your Answer: ${q['attempted_answer'] ?? 'Not Attempted'}",
                       ),
-                      Text(
-                        q.attemptedAnswer!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                      trailing: Text(
+                        q['is_correct'] ? "Correct" : "Wrong",
+                        style: TextStyle(
+                          color: q['is_correct'] ? Colors.green : Colors.red,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      icon,
-                    ],
-                  ),
-                // If wrong, show correct answer
-                if (q.attemptedAnswer != null && !q.isCorrect)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      children: [
-                        const Text(
-                          "Correct Answer: ",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                        Text(
-                          q.correctAnswer,
-                          style: const TextStyle(
-                            color: Colors.greenAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.check, color: Colors.white, size: 16),
-                      ],
                     ),
                   ),
-                // If not attempted
-                if (q.attemptedAnswer == null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      children: [
-                        const Text(
-                          "Not Attempted",
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                ),
               ],
             ),
           );

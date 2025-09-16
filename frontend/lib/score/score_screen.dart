@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../model/result_model.dart';
 import 'score_details_screen.dart';
@@ -213,6 +214,7 @@ class _ScoreScreenState extends State<ScoreScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
+
                     // Detailed Report Button
                     SizedBox(
                       width: double.infinity,
@@ -224,10 +226,26 @@ class _ScoreScreenState extends State<ScoreScreen> {
                           ),
                         ),
                         onPressed: () {
+                          // yahan se direct resultId pass karo
+                          final resultId = r.id; // ✅ Ye important hai
+
+                          if (resultId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Invalid result ID"),
+                              ),
+                            );
+                            return;
+                          }
+
+                          print("Navigating to details: resultId=$resultId");
+
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => DetailedReportScreen(result: r),
+                              builder:
+                                  (_) =>
+                                      ResultDetailsScreen(resultId: resultId),
                             ),
                           );
                         },
