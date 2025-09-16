@@ -123,84 +123,6 @@ app.post('/results', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// ✅ Submit mock test with negative marking
-app.post('/mock_tests/:mockId/submit', auth, async (req, res) => {
-  try {
-    const mockId = req.params.mockId;
-    const { user_id, answers, time_taken_minutes } = req.body;
-
-    if (!user_id || !answers || !Array.isArray(answers)) {
-      return res.status(400).json({ error: "user_id and answers array required" });
-    }
-
-    // 1️⃣ Get mock test details (to read negative_marking)
-    const [mockTestRows] = await pool.query(
-      "SELECT negative_marking FROM mock_tests WHERE id = ?",
-      [mockId]
-    );
-    if (!mockTestRows.length) return res.status(404).json({ error: "Mock test not found" });
-
-    const negativeMarking = mockTestRows[0].negative_marking || 0;
-
-    // 2️⃣ Get all questions for this mock test
-    const [questions] = await pool.query(
-      "SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?",
-      [mockId]
-    );
-
-    if (!questions.length) {
-      return res.status(400).json({ error: "No questions found for this mock test" });
-    }
-
-    // Convert answers array to a Map for quick lookup
-    const userAnswers = new Map(answers.map(a => [a.question_id, a.answer]));
-
-    // 3️⃣ Calculate score
-    let score = 0;
-    let correctCount = 0;
-    let wrongCount = 0;
-    let skippedCount = 0;
-
-    for (let q of questions) {
-      const userAns = userAnswers.get(q.id);
-
-      if (!userAns) {
-        skippedCount++;
-        continue; // user skipped
-      }
-
-      if (userAns === q.correct_answer) {
-        score += q.marks;      // correct
-        correctCount++;
-      } else {
-        score -= negativeMarking; // wrong answer
-        wrongCount++;
-      }
-    }
-
-    // 4️⃣ Save result
-    const [result] = await pool.query(
-      `INSERT INTO results (user_id, mock_id, score, time_taken_minutes)
-       VALUES (?, ?, ?, ?)`,
-      [user_id, mockId, score, time_taken_minutes || null]
-    );
-
-    // 5️⃣ Return full result summary
-    res.json({
-      message: "✅ Test submitted successfully",
-      result_id: result.insertId,
-      total_questions: questions.length,
-      correct: correctCount,
-      wrong: wrongCount,
-      skipped: skippedCount,
-      final_score: score
-    });
-
-  } catch (err) {
-    console.error("SUBMIT TEST ERROR:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // Add new question (editor + admin allowed)
 app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
@@ -360,6 +282,58 @@ app.get('/results/:userId', async (req, res) => {
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+// Simple GET API to fetch result + question attempts
+app.get('/api/results/:userId/:mockId', async (req, res) => {
+  const { userId, mockId } = req.params;
+
+  try {
+    // 1️⃣ Fetch the latest result for user + mock
+    const [results] = await pool.query(
+      `SELECT * FROM results WHERE user_id = ? AND mock_id = ? ORDER BY id DESC LIMIT 1`,
+      [userId, mockId]
+    );
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Result not found' });
+    }
+
+    const result = results[0];
+
+    // 2️⃣ Fetch all questions + user's attempt
+    const [questions] = await pool.query(
+      `SELECT q.id AS question_id, q.question_text AS question, q.correct_answer,
+              qa.attempted_answer, qa.is_correct
+       FROM questions q
+       LEFT JOIN question_attempts qa
+       ON q.id = qa.question_id AND qa.result_id = ?
+       WHERE q.mock_id = ?`,
+      [result.id, mockId]
+    );
+
+    // 3️⃣ Build JSON response
+    const response = {
+      id: result.id,
+      mock_id: result.mock_id,
+      title: result.title || 'Mock Test',
+      score: result.score,
+      total_marks: result.total_marks,
+      time_taken_minutes: result.time_taken_minutes,
+      date_taken: result.date_taken,
+      questions: questions.map(q => ({
+        question: q.question,
+        correct_answer: q.correct_answer,
+        attempted_answer: q.attempted_answer,
+        is_correct: q.is_correct === 1, // convert tinyint(1) to boolean
+      })),
+    };
+
+    res.json(response);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
