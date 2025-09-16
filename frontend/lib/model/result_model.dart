@@ -1,3 +1,6 @@
+//score result model
+import 'package:examtrack/model/question_model.dart';
+
 class ResultModel {
   final int id;
   final int userId;
@@ -7,6 +10,12 @@ class ResultModel {
   final DateTime dateTaken;
   final String title; // updated: was mockName
   final int totalMarks;
+  final List<QuestionModel> questions;
+  int get attemptedQuestions =>
+      questions.where((q) => q.attemptedAnswer != null).length;
+
+  int get notAttemptedQuestions =>
+      questions.where((q) => q.attemptedAnswer == null).length;
 
   ResultModel({
     required this.id,
@@ -17,6 +26,7 @@ class ResultModel {
     required this.dateTaken,
     this.title = "Mock Test", // default value
     this.totalMarks = 100, // default value
+    this.questions = const [], // default empty list
   });
   factory ResultModel.fromJson(Map<String, dynamic> json) {
     return ResultModel(
@@ -28,6 +38,11 @@ class ResultModel {
       title: json['title'] ?? 'Unknown',
       dateTaken: DateTime.tryParse(json['date_taken'] ?? '') ?? DateTime.now(),
       userId: json['user_id'] ?? 0,
+      questions:
+          (json['questions'] as List<dynamic>?)
+              ?.map((e) => QuestionModel.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 }
