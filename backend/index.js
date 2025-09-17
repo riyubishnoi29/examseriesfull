@@ -285,11 +285,11 @@ app.get('/results/:userId', async (req, res) => {
   }
 });
 
-// result ke andar ka question-wise data
+// Get detailed result by result_id
 app.get('/result-details/:result_id', async (req, res) => {
-    const { result_id } = req.params;
-    try {
-        const [resultData] = await db.query(`
+  const { result_id } = req.params;
+  try {
+    const [resultData] = await pool.query(`
             SELECT r.id AS result_id, r.user_id, r.mock_id, m.title AS mock_title,
                    r.score, r.time_taken_minutes, r.date_taken, m.total_marks
             FROM results r
@@ -297,11 +297,11 @@ app.get('/result-details/:result_id', async (req, res) => {
             WHERE r.id = ?
         `, [result_id]);
 
-        if (resultData.length === 0) {
-            return res.status(404).json({ error: 'Result not found' });
-        }
+    if (resultData.length === 0) {
+      return res.status(404).json({ error: 'Result not found' });
+    }
 
-        const [questionAttempts] = await db.query(`
+    const [questionAttempts] = await pool.query(`
             SELECT qa.id AS attempt_id, q.id AS question_id, q.question_text, q.correct_answer,
                    qa.attempted_answer, qa.is_correct
             FROM question_attempts qa
@@ -309,15 +309,15 @@ app.get('/result-details/:result_id', async (req, res) => {
             WHERE qa.result_id = ?
         `, [result_id]);
 
-        res.json({
-            result: resultData[0],
-            questions: questionAttempts
-        });
-    } catch (err) {
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+    res.json({
+      result: resultData[0],
+      questions: questionAttempts
+    });
+  } catch (err) {
+    console.error("RESULT DETAILS ERROR:", err.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
-
 
 // --- Auth Routes ---
 // SIGNUP
