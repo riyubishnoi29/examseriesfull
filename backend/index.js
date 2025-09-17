@@ -284,11 +284,11 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 app.get("/result-details/:result_id", async (req, res) => {
   try {
     const { result_id } = req.params;
 
-    // ✅ Step 1: Result summary with mock test details
     const [resultRows] = await pool.query(`
       SELECT r.id AS result_id, r.user_id, r.mock_id, r.score, r.time_taken_minutes, r.date_taken,
              m.title AS mock_title, m.total_marks
@@ -303,7 +303,6 @@ app.get("/result-details/:result_id", async (req, res) => {
 
     const result = resultRows[0];
 
-    // ✅ Step 2: Fetch all question attempts for this result
     const [questionRows] = await pool.query(`
       SELECT q.id AS question_id, q.question_text, qa.attempted_answer, qa.is_correct
       FROM question_attempts qa
@@ -311,7 +310,6 @@ app.get("/result-details/:result_id", async (req, res) => {
       WHERE qa.result_id = ?
     `, [result_id]);
 
-    // ✅ Step 3: Return clean JSON response
     res.json({
       success: true,
       result: result,
@@ -319,10 +317,11 @@ app.get("/result-details/:result_id", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("RESULT-DETAILS ERROR:", err.message);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("RESULT-DETAILS ERROR:", err);  // 🔹 Full error log
+    res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // --- Auth Routes ---
