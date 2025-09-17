@@ -114,40 +114,15 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
 app.post('/results', async (req, res) => {
   try {
     const { user_id, mock_id, score, time_taken_minutes } = req.body;
-
-    // 1️⃣ Insert into results table
     const [result] = await pool.query(
       'INSERT INTO results (user_id, mock_id, score, time_taken_minutes) VALUES (?, ?, ?, ?)',
       [user_id, mock_id, score, time_taken_minutes]
     );
-    const resultId = result.insertId;
-
-    // 2️⃣ Fetch all questions for this mock
-    const [questions] = await pool.query(
-      'SELECT id FROM questions WHERE mock_id = ?',
-      [mock_id]
-    );
-
-    // 3️⃣ Insert into question_attempts table
-   if (questions.length) {
-  const values = questions.map(q => [resultId, q.id]);
-  const placeholders = values.map(() => '(?, ?)').join(',');
-  const flatValues = values.flat();  // flatten 2D array to 1D
-  await pool.query(
-    `INSERT INTO question_attempts (result_id, question_id) VALUES ${placeholders}`,
-    flatValues
-  );
-}
-
-
-    res.json({ message: 'Result and attempts saved', resultId });
-
+    res.json({ message: 'Result saved', id: result.insertId });
   } catch (err) {
-    console.error("RESULT INSERT ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // Add new question (editor + admin allowed)
 app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
@@ -309,47 +284,6 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-app.get("/result-details/:result_id", async (req, res) => {
-  try {
-    const result_id = parseInt(req.params.result_id, 10);
-    if (isNaN(result_id)) return res.status(400).json({ error: "Invalid result_id" });
-
-    const [resultRows] = await pool.query(`
-      SELECT r.id AS result_id, r.user_id, r.mock_id, r.score, r.time_taken_minutes, r.date_taken,
-             m.title AS mock_title, m.total_marks
-      FROM results r
-      JOIN mock_tests m ON r.mock_id = m.id
-      WHERE r.id = ?
-    `, [result_id]);
-
-    if (resultRows.length === 0) {
-      return res.status(404).json({ error: "Result not found" });
-    }
-
-    const result = resultRows[0];
-    if (!result.mock_id) {
-      return res.status(500).json({ error: "Result exists but missing mock_id" });
-    }
-
-    const [questionRows] = await pool.query(`
-      SELECT q.id AS question_id, q.question_text, qa.attempted_answer, qa.is_correct
-      FROM question_attempts qa
-      JOIN questions q ON qa.question_id = q.id
-      WHERE qa.result_id = ?
-    `, [result_id]);
-
-    res.json({
-      success: true,
-      result: result,
-      questions: questionRows || []
-    });
-
-  } catch (err) {
-    console.error("RESULT-DETAILS ERROR:", err);
-    res.status(500).json({ error: "Server error fetching result details" });
-  }
-});
-
 
 
 // --- Auth Routes ---
