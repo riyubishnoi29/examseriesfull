@@ -284,38 +284,45 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // Get detailed result by result_id
 app.get('/result-details/:result_id', async (req, res) => {
-  const { result_id } = req.params;
-  try {
-    const [resultData] = await pool.query(`
-            SELECT r.id AS result_id, r.user_id, r.mock_id, m.title AS mock_title,
-                   r.score, r.time_taken_minutes, r.date_taken, m.total_marks
-            FROM results r
-            JOIN mock_tests m ON r.mock_id = m.id
-            WHERE r.id = ?
-        `, [result_id]);
+  const result_id = req.params.result_id;
+  console.log('🔎 /result-details hit for id =', result_id);
 
-    if (resultData.length === 0) {
+  try {
+    // result row
+    const [resultRows] = await pool.query(`
+      SELECT r.id AS result_id, r.user_id, r.mock_id, m.title AS mock_title,
+             r.score, r.time_taken_minutes, r.date_taken, m.total_marks
+      FROM results r
+      JOIN mock_tests m ON r.mock_id = m.id
+      WHERE r.id = ?
+    `, [result_id]);
+
+    if (!resultRows || resultRows.length === 0) {
+      console.log('Result not found for id:', result_id);
       return res.status(404).json({ error: 'Result not found' });
     }
 
+    // question attempts (use LEFT JOIN to be safe if data inconsistent)
     const [questionAttempts] = await pool.query(`
-            SELECT qa.id AS attempt_id, q.id AS question_id, q.question_text, q.correct_answer,
-                   qa.attempted_answer, qa.is_correct
-            FROM question_attempts qa
-            JOIN questions q ON qa.question_id = q.id
-            WHERE qa.result_id = ?
-        `, [result_id]);
+      SELECT qa.id AS attempt_id, q.id AS question_id, q.question_text, q.correct_answer,
+             qa.attempted_answer, qa.is_correct
+      FROM question_attempts qa
+      LEFT JOIN questions q ON qa.question_id = q.id
+      WHERE qa.result_id = ?
+    `, [result_id]);
 
-    res.json({
-      result: resultData[0],
-      questions: questionAttempts
-    });
+    console.log('Fetched result + attempts counts:', resultRows.length, questionAttempts.length);
+    return res.json({ result: resultRows[0], questions: questionAttempts });
   } catch (err) {
-    console.error("RESULT DETAILS ERROR:", err.message);
-    res.status(500).json({ error: 'Internal Server Error' });
+    // Detailed logging for debugging (remove stack/message leak in production)
+    console.error('ERROR in /result-details/:', err);
+    // If it's a SQL error, mysql2 often has err.sqlMessage / err.code
+    if (err && (err.sqlMessage || err.code)) {
+      console.error('SQL ERR =>', err.code, err.sqlMessage);
+    }
+    return res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 });
 
