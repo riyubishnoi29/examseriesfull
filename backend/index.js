@@ -114,15 +114,37 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
 app.post('/results', async (req, res) => {
   try {
     const { user_id, mock_id, score, time_taken_minutes } = req.body;
+
+    // 1️⃣ Insert into results table
     const [result] = await pool.query(
       'INSERT INTO results (user_id, mock_id, score, time_taken_minutes) VALUES (?, ?, ?, ?)',
       [user_id, mock_id, score, time_taken_minutes]
     );
-    res.json({ message: 'Result saved', id: result.insertId });
+    const resultId = result.insertId;
+
+    // 2️⃣ Fetch all questions for this mock
+    const [questions] = await pool.query(
+      'SELECT id FROM questions WHERE mock_id = ?',
+      [mock_id]
+    );
+
+    // 3️⃣ Insert into question_attempts table
+    if (questions.length) {
+      const values = questions.map(q => [resultId, q.id]);
+      await pool.query(
+        'INSERT INTO question_attempts (result_id, question_id) VALUES ?',
+        [values]
+      );
+    }
+
+    res.json({ message: 'Result and attempts saved', resultId });
+
   } catch (err) {
+    console.error("RESULT INSERT ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Add new question (editor + admin allowed)
 app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
