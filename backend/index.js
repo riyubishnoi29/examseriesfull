@@ -284,10 +284,10 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 app.get("/result-details/:result_id", async (req, res) => {
   try {
-    const { result_id } = req.params;
+    const result_id = parseInt(req.params.result_id, 10);
+    if (isNaN(result_id)) return res.status(400).json({ error: "Invalid result_id" });
 
     const [resultRows] = await pool.query(`
       SELECT r.id AS result_id, r.user_id, r.mock_id, r.score, r.time_taken_minutes, r.date_taken,
@@ -302,6 +302,9 @@ app.get("/result-details/:result_id", async (req, res) => {
     }
 
     const result = resultRows[0];
+    if (!result.mock_id) {
+      return res.status(500).json({ error: "Result exists but missing mock_id" });
+    }
 
     const [questionRows] = await pool.query(`
       SELECT q.id AS question_id, q.question_text, qa.attempted_answer, qa.is_correct
@@ -317,8 +320,8 @@ app.get("/result-details/:result_id", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("RESULT-DETAILS ERROR:", err);  // 🔹 Full error log
-    res.status(500).json({ error: err.message });
+    console.error("RESULT-DETAILS ERROR:", err);
+    res.status(500).json({ error: "Server error fetching result details" });
   }
 });
 
