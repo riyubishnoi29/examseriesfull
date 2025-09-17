@@ -284,12 +284,23 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 app.get("/result-details/:result_id", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT 1 as ok");
-    res.json({ success: true, db: rows });
+    const { result_id } = req.params;
+
+    // Bas simple test query
+    const [result] = await pool.query(`
+      SELECT r.id as result_id, r.score, r.time_taken_minutes, r.date_taken, 
+             m.title as mock_title, m.total_marks
+      FROM results r
+      JOIN mock_tests m ON r.mock_id = m.id
+      WHERE r.id = ?
+    `, [result_id]);
+
+    res.json({ success: true, data: result });
   } catch (err) {
-    console.error("DB Test Error:", err);
+    console.error("DB Test Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
