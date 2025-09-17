@@ -284,26 +284,46 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 app.get("/result-details/:result_id", async (req, res) => {
   try {
     const { result_id } = req.params;
 
-    // Bas simple test query
-    const [result] = await pool.query(`
-      SELECT r.id as result_id, r.score, r.time_taken_minutes, r.date_taken, 
-             m.title as mock_title, m.total_marks
+    // ✅ Step 1: Result summary with mock test details
+    const [resultRows] = await pool.query(`
+      SELECT r.id AS result_id, r.user_id, r.mock_id, r.score, r.time_taken_minutes, r.date_taken,
+             m.title AS mock_title, m.total_marks
       FROM results r
       JOIN mock_tests m ON r.mock_id = m.id
       WHERE r.id = ?
     `, [result_id]);
 
-    res.json({ success: true, data: result });
+    if (resultRows.length === 0) {
+      return res.status(404).json({ error: "Result not found" });
+    }
+
+    const result = resultRows[0];
+
+    // ✅ Step 2: Fetch all question attempts for this result
+    const [questionRows] = await pool.query(`
+      SELECT q.id AS question_id, q.question_text, qa.attempted_answer, qa.is_correct
+      FROM question_attempts qa
+      JOIN questions q ON qa.question_id = q.id
+      WHERE qa.result_id = ?
+    `, [result_id]);
+
+    // ✅ Step 3: Return clean JSON response
+    res.json({
+      success: true,
+      result: result,
+      questions: questionRows || []
+    });
+
   } catch (err) {
-    console.error("DB Test Error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("RESULT-DETAILS ERROR:", err.message);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 // --- Auth Routes ---
 // SIGNUP
