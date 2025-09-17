@@ -129,13 +129,16 @@ app.post('/results', async (req, res) => {
     );
 
     // 3️⃣ Insert into question_attempts table
-    if (questions.length) {
-      const values = questions.map(q => [resultId, q.id]);
-      await pool.query(
-        'INSERT INTO question_attempts (result_id, question_id) VALUES ?',
-        [values]
-      );
-    }
+   if (questions.length) {
+  const values = questions.map(q => [resultId, q.id]);
+  const placeholders = values.map(() => '(?, ?)').join(',');
+  const flatValues = values.flat();  // flatten 2D array to 1D
+  await pool.query(
+    `INSERT INTO question_attempts (result_id, question_id) VALUES ${placeholders}`,
+    flatValues
+  );
+}
+
 
     res.json({ message: 'Result and attempts saved', resultId });
 
