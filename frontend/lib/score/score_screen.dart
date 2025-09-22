@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 import '../services/api_service.dart';
 import '../model/result_model.dart';
-import 'score_details_screen.dart';
 
 class ScoreScreen extends StatefulWidget {
   const ScoreScreen({super.key});
@@ -214,54 +213,6 @@ class _ScoreScreenState extends State<ScoreScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-
-                    // Detailed Report Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF3B30),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () {
-                          // yahan se direct resultId pass karo
-                          final resultId = r.id; // ✅ Ye important hai
-
-                          if (resultId == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Invalid result ID"),
-                              ),
-                            );
-                            return;
-                          }
-
-                          print("Navigating to details: resultId=$resultId");
-
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (_) =>
-                                      ResultDetailsScreen(resultId: resultId),
-                            ),
-                          );
-                        },
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            "View Detailed Report",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               );

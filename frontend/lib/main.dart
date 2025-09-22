@@ -10,7 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // System navigation aur status bar ka color set kare
   SystemChrome.setSystemUIOverlayStyle(
     SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -20,7 +19,6 @@ void main() {
     ),
   );
 
-  // Edge-to-edge safe UI mode
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   runApp(MyApp());

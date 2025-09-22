@@ -154,17 +154,42 @@ class ApiService {
     } else {
       throw Exception("Failed to load results");
     }
-  } // Fetch result details by resultId
+  }
 
-  static Future<Map<String, dynamic>> fetchResultDetails(int resultId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/result-details/$resultId'),
-    );
+  // Save result with answers
+  static Future<bool> saveResultWithAnswers(
+    int mockId,
+    int score,
+    int timeTakenMinutes,
+    List<Map<String, dynamic>> answers,
+  ) async {
+    try {
+      final url = Uri.parse("$baseUrl/saveResultWithAnswers");
 
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception("Failed to load result details");
+      final body = {
+        "user_id": 1, // ✅ Replace with logged-in user ID if available
+        "mock_id": mockId,
+        "score": score,
+        "time_taken_minutes": timeTakenMinutes,
+        "answers": answers,
+      };
+
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['success'] == true;
+      } else {
+        print("Failed to save result: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("Error saving result: $e");
+      return false;
     }
   }
 }

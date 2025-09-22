@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import '../score/score_screen.dart';
-import '../services/api_service.dart';
 
-class ResultScreen extends StatefulWidget {
+class ResultScreen extends StatelessWidget {
   final int score;
   final int total;
   final int mockId;
   final String title;
   final int timeTakenMinutes;
+  final double negativeMarking;
+  final List<Map<String, dynamic>> answers; // 👈 List of attempted questions
 
   const ResultScreen({
     super.key,
@@ -16,145 +16,129 @@ class ResultScreen extends StatefulWidget {
     required this.mockId,
     required this.title,
     required this.timeTakenMinutes,
+    required this.negativeMarking,
+    required this.answers,
   });
-
-  @override
-  State<ResultScreen> createState() => _ResultScreenState();
-}
-
-class _ResultScreenState extends State<ResultScreen> {
-  bool _isSaving = false;
-  bool _alreadySaved = false; // ✅ Prevent duplicate save
-
-  Future<void> _saveResult(BuildContext context, VoidCallback onSuccess) async {
-    if (_isSaving || _alreadySaved) return;
-    setState(() => _isSaving = true);
-
-    try {
-      final isSaved = await ApiService.saveResult(
-        widget.mockId,
-        widget.score,
-        widget.total,
-        widget.timeTakenMinutes,
-        widget.title,
-      );
-      if (isSaved) {
-        _alreadySaved = true; // ✅ Mark as saved
-        onSuccess();
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error saving result: $e")));
-    } finally {
-      setState(() => _isSaving = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFEF4444),
-        title: const Text(
-          "Test Result",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        automaticallyImplyLeading: false,
+        title: const Text("Test Result"),
+        backgroundColor: Colors.redAccent,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Score Card
+            Card(
               color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.emoji_events,
+                      size: 60,
+                      color: Colors.amber,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "Test Completed!",
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      "Your Score",
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.grey[400],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "$score / $total",
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.greenAccent,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Time Taken: $timeTakenMinutes min",
+                      style: TextStyle(fontSize: 16, color: Colors.grey[400]),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.emoji_events, size: 60, color: Colors.amber),
-                const SizedBox(height: 16),
-                const Text(
-                  "Test Completed!",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+            const SizedBox(height: 20),
+
+            // Detailed Answers
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: answers.length,
+              itemBuilder: (context, index) {
+                final ans = answers[index];
+                final isCorrect = ans['is_correct'] as bool? ?? false;
+                final userAnswer = ans['attempted_answer'] ?? "Not Attempted";
+                final correctAnswer = ans['correct_answer'] ?? "";
+
+                return Card(
+                  color:
+                      isCorrect
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.red.withOpacity(0.2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  "Your Score",
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: Colors.grey[400],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "${widget.score} / ${widget.total}",
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.greenAccent,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  "Time Taken: ${widget.timeTakenMinutes} min",
-                  style: TextStyle(fontSize: 16, color: Colors.grey[400]),
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed:
-                        _isSaving || _alreadySaved
-                            ? null
-                            : () => _saveResult(
-                              context,
-                              () => Navigator.popUntil(
-                                context,
-                                (route) => route.isFirst,
-                              ),
-                            ),
-                    icon: const Icon(Icons.home, color: Colors.white),
-                    label: Text(
-                      _isSaving ? "Saving..." : "Back to Home",
-                      style: const TextStyle(fontSize: 16, color: Colors.white),
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Q${index + 1}: ${ans['question_text'] ?? ''}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "Your Answer: $userAnswer",
+                          style: TextStyle(
+                            color:
+                                isCorrect
+                                    ? Colors.greenAccent
+                                    : Colors.redAccent,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Correct Answer: $correctAnswer",
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed:
-                        _isSaving || _alreadySaved
-                            ? null
-                            : () => _saveResult(
-                              context,
-                              () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const ScoreScreen(),
-                                ),
-                              ),
-                            ),
-                    icon: const Icon(Icons.bar_chart, color: Colors.white),
-                    label: Text(
-                      _isSaving ? "Saving..." : "View All Scores",
-                      style: const TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
+                );
+              },
             ),
-          ),
+          ],
         ),
       ),
     );

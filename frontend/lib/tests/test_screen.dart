@@ -47,7 +47,6 @@ class _TestScreenState extends State<TestScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Heading in two lines
                       Text(
                         "Master Your Exam Journey\nwith Us.",
                         textAlign: TextAlign.center,
@@ -58,8 +57,7 @@ class _TestScreenState extends State<TestScreen> {
                           height: 1.3,
                         ),
                       ),
-                      SizedBox(height: 20), // Gap after heading
-                      // Exam tiles
+                      SizedBox(height: 20),
                       ...exams.map((exam) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -82,8 +80,7 @@ class _TestScreenState extends State<TestScreen> {
                         );
                       }).toList(),
 
-                      SizedBox(height: 20), // Gap after tiles
-                      // Student selection box
+                      SizedBox(height: 20),
                       Container(
                         width: double.infinity,
                         padding: EdgeInsets.symmetric(

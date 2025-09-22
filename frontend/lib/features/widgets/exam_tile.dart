@@ -10,7 +10,7 @@ class ExamTile extends StatelessWidget {
     required this.title,
     required this.imageUrl,
     required this.onTap,
-    this.height = 100, // thoda bada height
+    this.height = 100,
   });
 
   @override
@@ -28,7 +28,6 @@ class ExamTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Image upar nahi balki left me, home screen style ke liye vertical alignment
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
