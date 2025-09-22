@@ -1,7 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
-require('dotenv').config();  // Load .env variables
+require('dotenv').config();  
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
@@ -22,17 +22,14 @@ console.log("using port ", process.env.DB_PORT);
 
 // MySQL connection pool using environment variables
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,      // from .env
+  host: process.env.DB_HOST,      
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT,
-  //ssl: { rejectUnauthorized: true }
 });
 
 // --- API Routes ---
-
-
 // --- Middleware: role-based auth ---
 const roleAuth = (allowedRoles) => {
   return async (req, res, next) => {
@@ -54,7 +51,7 @@ const roleAuth = (allowedRoles) => {
         return res.status(403).json({ success: false, message: '❌ Access denied' });
       }
 
-      req.userRole = userRole; // store for later use
+      req.userRole = userRole; 
       next();
     } catch {
       return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
@@ -78,7 +75,6 @@ const auth = async (req, res, next) => {
 };
 
 // Get all exams
-
 app.get('/exams', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM exams');
@@ -147,7 +143,8 @@ app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// ✅ Get mock tests by status (default = draft)
+
+//  Get mock tests by status (default = draft)
 app.get('/mock_tests', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {
     const status = req.query.status || 'draft';
@@ -158,17 +155,16 @@ app.get('/mock_tests', roleAuth(['admin', 'publisher']), async (req, res) => {
   }
 });
 
-
 // Update question status (approve/reject) - only admin/publisher
 app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {
 
     const questionId = req.params.id;
-    const { status } = req.body; // frontend se aayega 'approved' ya 'rejected'
+    const { status } = req.body; 
     console.log("PATCH BODY:", req.body);
-    // ✅ Map frontend status to DB status
+   
     let dbStatus;
-    let s = status.toLowerCase(); // lowercase convert
+    let s = status.toLowerCase(); 
     if (s === 'approved' || s === 'live') dbStatus = 'live';
     else if (s === 'rejected' || s === 'draft') dbStatus = 'draft';
     else return res.status(400).json({ error: "Invalid status" });
@@ -199,7 +195,6 @@ app.get('/questions', roleAuth(['admin', 'publisher']), async (req, res) => {
   }
 });
 
-
 // Add new mock test (Admin + Editor)
 app.post('/mock_tests', roleAuth(['admin', 'editor']), async (req, res) => {
   try {
@@ -221,6 +216,7 @@ app.post('/mock_tests', roleAuth(['admin', 'editor']), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 // Update mock test status (approve/reject) - only admin/publisher
 app.patch('/mock_tests/:id/status', roleAuth(['admin', 'publisher']), async (req, res) => {
   try {
@@ -248,7 +244,6 @@ app.patch('/mock_tests/:id/status', roleAuth(['admin', 'publisher']), async (req
   }
 });
 
-
 // Delete question (Admin only)
 app.delete('/questions/:id', roleAuth(['admin']), async (req, res) => {
   try {
@@ -264,7 +259,6 @@ app.delete('/questions/:id', roleAuth(['admin']), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // Get results with mock test names
 app.get('/results/:userId', async (req, res) => {
@@ -285,6 +279,48 @@ app.get('/results/:userId', async (req, res) => {
   }
 });
 
+// Save result with answers (insert into results and question_attempts)
+app.post('/saveResultWithAnswers', async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const { user_id, mock_id, score, time_taken_minutes, answers } = req.body;
+
+    if (!user_id || !mock_id || !answers || !Array.isArray(answers)) {
+      return res.status(400).json({ error: "Invalid request data" });
+    }
+
+    await conn.beginTransaction();
+
+    // 1️⃣ Save main result in `results` table
+    const [result] = await conn.query(
+      `INSERT INTO results (user_id, mock_id, score, time_taken_minutes) 
+       VALUES (?, ?, ?, ?)`,
+      [user_id, mock_id, score, time_taken_minutes]
+    );
+
+    const resultId = result.insertId;
+
+    // 2️⃣ Save each attempted question in `question_attempts`
+    for (const ans of answers) {
+      await conn.query(
+        `INSERT INTO question_attempts (result_id, question_id, attempted_answer, is_correct)
+         VALUES (?, ?, ?, ?)`,
+        [resultId, ans.question_id, ans.attempted_answer || null, ans.is_correct]
+      );
+    }
+
+    await conn.commit();
+
+    res.json({ success: true, result_id: resultId });
+  } catch (error) {
+    await conn.rollback();
+    console.error("Error saving result:", error);
+    res.status(500).json({ error: "Internal server error" });
+  } finally {
+    conn.release();
+  }
+});
+
 
 // --- Auth Routes ---
 // SIGNUP
@@ -302,7 +338,7 @@ app.post('/api/auth/signup', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
       'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hash, 'user'] // default role user
+      [name, email, hash, 'user'] 
     );
 
     const user = { id: result.insertId, name, email, role: 'user' };
@@ -315,7 +351,7 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
-// LOGIN ✅ role fix
+// LOGIN
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
@@ -343,7 +379,6 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
 
 // --- PROFILE (protected) ---
 app.get('/api/auth/profile', auth, async (req, res) => {
@@ -375,9 +410,6 @@ app.get('/admin/login', (req, res) => {
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
-
-
-
 
 //test db connection
 async function testDbConnection() {
