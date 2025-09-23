@@ -27,7 +27,6 @@ const pool = mysql.createPool({
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT,
-  
 });
 
 // --- API Routes ---
@@ -279,49 +278,6 @@ app.get('/results/:userId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-// Save result with answers (insert into results and question_attempts)
-app.post('/saveResultWithAnswers', async (req, res) => {
-  const conn = await pool.getConnection();
-  try {
-    const { user_id, mock_id, score, time_taken_minutes, answers } = req.body;
-
-    if (!user_id || !mock_id || !answers || !Array.isArray(answers)) {
-      return res.status(400).json({ error: "Invalid request data" });
-    }
-
-    await conn.beginTransaction();
-
-    // 1️⃣ Save main result in `results` table
-    const [result] = await conn.query(
-      `INSERT INTO results (user_id, mock_id, score, time_taken_minutes) 
-       VALUES (?, ?, ?, ?)`,
-      [user_id, mock_id, score, time_taken_minutes]
-    );
-
-    const resultId = result.insertId;
-
-    // 2️⃣ Save each attempted question in `question_attempts`
-    for (const ans of answers) {
-      await conn.query(
-        `INSERT INTO question_attempts (result_id, question_id, attempted_answer, is_correct)
-         VALUES (?, ?, ?, ?)`,
-        [resultId, ans.question_id, ans.attempted_answer || null, ans.is_correct]
-      );
-    }
-
-    await conn.commit();
-
-    res.json({ success: true, result_id: resultId });
-  } catch (error) {
-    await conn.rollback();
-    console.error("Error saving result:", error);
-    res.status(500).json({ error: "Internal server error" });
-  } finally {
-    conn.release();
-  }
-});
-
 
 // --- Auth Routes ---
 // SIGNUP
