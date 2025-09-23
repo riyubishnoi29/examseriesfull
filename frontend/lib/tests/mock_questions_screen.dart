@@ -7,11 +7,13 @@ class QuestionsScreen extends StatefulWidget {
   final int mockId;
   final String mockName;
   final int timeLimit;
+  final double negativeMarking;
 
   QuestionsScreen({
     required this.mockId,
     required this.mockName,
     required this.timeLimit,
+    required this.negativeMarking,
   });
 
   @override
@@ -92,11 +94,15 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 
   void showResult() async {
     timer?.cancel();
-    int score = 0;
-    int totalMarks = 0;
+    double score = 0; // float use kara, kyunki -0.25 bhi aa sakta hai
+    double totalMarks = 0;
 
     for (int i = 0; i < questions.length; i++) {
-      int marks = int.tryParse(questions[i]['marks']?.toString() ?? "1") ?? 1;
+      double marks =
+          double.tryParse(questions[i]['marks']?.toString() ?? "1") ?? 1;
+      double negativeMarks =
+          double.tryParse(questions[i]['negative_marks']?.toString() ?? "0") ??
+          0;
       totalMarks += marks;
 
       final correctAnswer = questions[i]['correct_answer']?.toString() ?? "";
@@ -104,6 +110,8 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 
       if (selectedAnswer == correctAnswer) {
         score += marks;
+      } else if (selectedAnswer.isNotEmpty) {
+        score -= negativeMarks;
       }
     }
 
@@ -128,7 +136,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
               mockId: widget.mockId,
               title: widget.mockName,
               timeTakenMinutes: timeTakenMinutes,
-              negativeMarking: 0.0,
+              negativeMarking: widget.negativeMarking,
             ),
       ),
     );

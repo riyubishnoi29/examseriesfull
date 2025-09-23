@@ -60,6 +60,11 @@ class _MockTestsScreenState extends State<MockTestsScreen> {
               mockId: mock['id'],
               mockName: mock['title'],
               timeLimit: mock['duration_minutes'],
+              negativeMarking:
+                  double.tryParse(
+                    mock['negative_marking']?.toString() ?? "0",
+                  ) ??
+                  0.0,
             ),
       ),
     );

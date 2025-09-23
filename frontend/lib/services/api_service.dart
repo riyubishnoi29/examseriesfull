@@ -22,6 +22,7 @@ class ApiService {
   static Future<List<dynamic>> getMockTests(int examId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/exams/$examId/mock_tests'),
+      headers: {'Cache-Control': 'no-cache', 'Pragma': 'no-cache'},
     );
     if (response.statusCode == 200) {
       return json.decode(response.body);
@@ -103,8 +104,8 @@ class ApiService {
   //save result
   static Future<bool> saveResult(
     int mockId,
-    int score,
-    int totalMarks,
+    double score,
+    double totalMarks,
     int timeTakenMinutes,
     String title,
   ) async {
