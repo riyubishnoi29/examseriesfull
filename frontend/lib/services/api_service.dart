@@ -155,41 +155,4 @@ class ApiService {
       throw Exception("Failed to load results");
     }
   }
-
-  // Save result with answers
-  static Future<bool> saveResultWithAnswers(
-    int mockId,
-    int score,
-    int timeTakenMinutes,
-    List<Map<String, dynamic>> answers,
-  ) async {
-    try {
-      final url = Uri.parse("$baseUrl/saveResultWithAnswers");
-
-      final body = {
-        "user_id": 1, // ✅ Replace with logged-in user ID if available
-        "mock_id": mockId,
-        "score": score,
-        "time_taken_minutes": timeTakenMinutes,
-        "answers": answers,
-      };
-
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['success'] == true;
-      } else {
-        print("Failed to save result: ${response.body}");
-        return false;
-      }
-    } catch (e) {
-      print("Error saving result: $e");
-      return false;
-    }
-  }
 }
