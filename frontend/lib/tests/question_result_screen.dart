@@ -27,6 +27,23 @@ class ResultScreen extends StatefulWidget {
 class _ResultScreenState extends State<ResultScreen> {
   bool _isSaving = false;
   bool _alreadySaved = false;
+
+  late double finalScore; // Final score with negative marking
+
+  @override
+  void initState() {
+    super.initState();
+    _calculateFinalScore();
+  }
+
+  void _calculateFinalScore() {
+    int wrongAnswers = (widget.total - widget.score).toInt();
+    finalScore = widget.score - (wrongAnswers * widget.negativeMarking);
+
+    // अगर negative score zero से नीचे चला जाए तो zero दिखाना
+    if (finalScore < 0) finalScore = 0;
+  }
+
   Future<void> _saveResult(BuildContext context, VoidCallback onSuccess) async {
     if (_isSaving || _alreadySaved) return;
     setState(() => _isSaving = true);
@@ -34,7 +51,7 @@ class _ResultScreenState extends State<ResultScreen> {
     try {
       final isSaved = await ApiService.saveResult(
         widget.mockId,
-        widget.score,
+        finalScore, // final score भेजा जा रहा है
         widget.total,
         widget.timeTakenMinutes,
         widget.title,
@@ -97,7 +114,7 @@ class _ResultScreenState extends State<ResultScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "${widget.score} / ${widget.total}",
+                  "$finalScore / ${widget.total}",
                   style: const TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.bold,
