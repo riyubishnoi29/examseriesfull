@@ -137,6 +137,8 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
               title: widget.mockName,
               timeTakenMinutes: timeTakenMinutes,
               negativeMarking: widget.negativeMarking,
+              questions: questions,
+              selectedAnswers: selectedAnswers,
             ),
       ),
     );
