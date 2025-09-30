@@ -56,7 +56,6 @@ class ResultScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ====== Summary Card ======
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -120,7 +119,6 @@ class ResultScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // Extra info
                 Text(
                   "Time Taken: $timeTakenMinutes min",
                   style: const TextStyle(color: Colors.white70),
@@ -135,7 +133,6 @@ class ResultScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // ====== Questions Review ======
           const Text(
             "Review Questions",
             style: TextStyle(
