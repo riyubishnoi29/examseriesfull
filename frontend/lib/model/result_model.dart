@@ -29,13 +29,26 @@ class ResultModel {
     this.questions = const [],
     this.negativeMarking = 0.0,
   });
+
   factory ResultModel.fromJson(Map<String, dynamic> json) {
     return ResultModel(
       id: json['id'] ?? 0,
       mockId: json['mock_id'] ?? 0,
-      score: json['score'] ?? 0,
-      totalMarks: json['total_marks'] ?? 0,
-      timeTakenMinutes: json['time_taken_minutes'] ?? 0,
+      score:
+          json['score'] != null
+              ? (double.tryParse(json['score'].toString())?.toInt() ?? 0)
+              : 0,
+      totalMarks:
+          json['total_marks'] != null
+              ? (double.tryParse(json['total_marks'].toString())?.toInt() ?? 0)
+              : 100,
+      timeTakenMinutes:
+          json['time_taken_minutes'] != null
+              ? (double.tryParse(
+                    json['time_taken_minutes'].toString(),
+                  )?.toInt() ??
+                  0)
+              : 0,
       title: json['title'] ?? 'Unknown',
       dateTaken: DateTime.tryParse(json['date_taken'] ?? '') ?? DateTime.now(),
       userId: json['user_id'] ?? 0,

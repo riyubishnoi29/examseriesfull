@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 
-class ResultScreen extends StatelessWidget {
+class ResultScreen extends StatefulWidget {
   final double score;
   final double total;
   final int mockId;
@@ -23,15 +25,58 @@ class ResultScreen extends StatelessWidget {
   });
 
   @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  bool _isSaving = false;
+  bool _isSaved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _saveResultAutomatically();
+  }
+
+  Future<void> _saveResultAutomatically() async {
+    if (!mounted) return;
+    setState(() => _isSaving = true);
+
+    try {
+      bool success = await ApiService.saveResult(
+        widget.mockId,
+        widget.score,
+        widget.total,
+        widget.timeTakenMinutes,
+        widget.title,
+        widget.selectedAnswers.entries
+            .map((e) => {'question_id': e.key, 'selected_option': e.value})
+            .toList(),
+      );
+
+      if (success) {
+        if (!mounted) return;
+        setState(() => _isSaved = true);
+      }
+    } catch (e) {
+      debugPrint("❌ Error saving result: $e");
+    } finally {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     int correctCount = 0;
     int wrongCount = 0;
     int skippedCount = 0;
 
-    for (int i = 0; i < questions.length; i++) {
-      final q = questions[i];
+    // ✅ updated toString conversion
+    for (int i = 0; i < widget.questions.length; i++) {
+      final q = widget.questions[i];
       final correctAnswer = q['correct_answer']?.toString() ?? "";
-      final selected = selectedAnswers[i] ?? "";
+      final selected = widget.selectedAnswers[q['id']] ?? "";
 
       if (selected.isEmpty) {
         skippedCount++;
@@ -42,20 +87,42 @@ class ResultScreen extends StatelessWidget {
       }
     }
 
-    double percentage = (score / total) * 100;
+    double percentage = (widget.score / widget.total) * 100;
 
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.redAccent,
         title: Text(
-          "Result - $title",
+          "Result - ${widget.title}",
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        actions: [
+          if (_isSaving)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Center(
+                child: SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                ),
+              ),
+            ),
+          if (_isSaved)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Icon(Icons.check_circle, color: Colors.white),
+            ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Score Box
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -71,7 +138,7 @@ class ResultScreen extends StatelessWidget {
             ),
             child: Column(
               children: [
-                // Circular progress style score
+                // Circular progress
                 Stack(
                   alignment: Alignment.center,
                   children: [
@@ -79,7 +146,7 @@ class ResultScreen extends StatelessWidget {
                       width: 100,
                       height: 100,
                       child: CircularProgressIndicator(
-                        value: score / total,
+                        value: widget.score / widget.total,
                         strokeWidth: 10,
                         backgroundColor: Colors.grey.shade700,
                         valueColor: const AlwaysStoppedAnimation(
@@ -99,7 +166,7 @@ class ResultScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          "$score / $total",
+                          "${widget.score.toStringAsFixed(2)} / ${widget.total.toStringAsFixed(2)}",
                           style: const TextStyle(color: Colors.white70),
                         ),
                       ],
@@ -108,7 +175,6 @@ class ResultScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Stats row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -120,17 +186,16 @@ class ResultScreen extends StatelessWidget {
                 const SizedBox(height: 12),
 
                 Text(
-                  "Time Taken: $timeTakenMinutes min",
+                  "Time Taken: ${widget.timeTakenMinutes} min",
                   style: const TextStyle(color: Colors.white70),
                 ),
                 Text(
-                  "Negative Marking: $negativeMarking",
+                  "Negative Marking: ${widget.negativeMarking}",
                   style: const TextStyle(color: Colors.white70),
                 ),
               ],
             ),
           ),
-
           const SizedBox(height: 24),
 
           const Text(
@@ -143,10 +208,11 @@ class ResultScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          ...List.generate(questions.length, (i) {
-            final q = questions[i];
+          ...List.generate(widget.questions.length, (i) {
+            final q = widget.questions[i];
             final correctAnswer = q['correct_answer']?.toString() ?? "";
-            final selected = selectedAnswers[i] ?? "";
+            final selected =
+                widget.selectedAnswers[q['id'].toString()] ?? ""; // ✅ updated
 
             bool isCorrect = selected == correctAnswer;
             bool isSkipped = selected.isEmpty;
@@ -162,7 +228,6 @@ class ResultScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Question text
                     Text(
                       "Q${i + 1}. ${q['question_text']}",
                       style: const TextStyle(
@@ -173,7 +238,6 @@ class ResultScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
 
-                    // Options
                     ...List<String>.from(q['options']).map((opt) {
                       bool isSelected = selected == opt;
                       bool isAnswer = opt == correctAnswer;

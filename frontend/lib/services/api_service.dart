@@ -108,6 +108,7 @@ class ApiService {
     double totalMarks,
     int timeTakenMinutes,
     String title,
+    List<Map<String, dynamic>> answers,
   ) async {
     final token = await storage.read(key: "token");
     if (token == null) return false;
@@ -125,6 +126,7 @@ class ApiService {
       "total_marks": totalMarks,
       "time_taken_minutes": timeTakenMinutes,
       "title": title,
+      "answers": answers,
     };
 
     final response = await http.post(

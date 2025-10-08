@@ -24,7 +24,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   bool isLoading = true;
   List questions = [];
   int currentIndex = 0;
-  Map<int, String> selectedAnswers = {};
+  Map<int, String> selectedAnswers = {}; // key = question id
   Set<int> markedQuestions = {};
   late int remainingSeconds;
   Timer? timer;
@@ -72,7 +72,9 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   }
 
   void selectAnswer(String answer) {
-    setState(() => selectedAnswers[currentIndex] = answer);
+    final questionId = questions[currentIndex]['id'];
+    setState(() => selectedAnswers[questionId] = answer);
+
     Future.delayed(const Duration(milliseconds: 300), () {
       if (currentIndex < questions.length - 1) {
         setState(() => currentIndex++);
@@ -94,19 +96,17 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 
   void showResult() async {
     timer?.cancel();
-    double score = 0; // float use kara, kyunki -0.25 bhi aa sakta hai
+    double score = 0;
     double totalMarks = 0;
 
-    for (int i = 0; i < questions.length; i++) {
-      double marks =
-          double.tryParse(questions[i]['marks']?.toString() ?? "1") ?? 1;
+    for (var q in questions) {
+      double marks = double.tryParse(q['marks']?.toString() ?? "1") ?? 1;
       double negativeMarks =
-          double.tryParse(questions[i]['negative_marks']?.toString() ?? "0") ??
-          0;
+          double.tryParse(q['negative_marks']?.toString() ?? "0") ?? 0;
       totalMarks += marks;
 
-      final correctAnswer = questions[i]['correct_answer']?.toString() ?? "";
-      final selectedAnswer = selectedAnswers[i] ?? "";
+      final correctAnswer = q['correct_answer']?.toString() ?? "";
+      final selectedAnswer = selectedAnswers[q['id']] ?? "";
 
       if (selectedAnswer == correctAnswer) {
         score += marks;
@@ -124,6 +124,9 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
       totalMarks,
       timeTakenMinutes,
       widget.mockName,
+      selectedAnswers.entries
+          .map((e) => {'question_id': e.key, 'selected_option': e.value})
+          .toList(),
     );
 
     Navigator.pushReplacement(
@@ -149,7 +152,9 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
     int notAttempted = questions.length - attempted;
     int marked = markedQuestions.length;
     int markedAttempted =
-        markedQuestions.where((i) => selectedAnswers.containsKey(i)).length;
+        markedQuestions
+            .where((i) => selectedAnswers.containsKey(questions[i]['id']))
+            .length;
 
     showModalBottomSheet(
       context: context,
@@ -157,9 +162,9 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
       isScrollControlled: true,
       builder: (_) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.7, // default open 70%
-          minChildSize: 0.4, // min collapse
-          maxChildSize: 0.95, // max expand
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
           builder: (context, scrollController) {
             return Container(
               decoration: const BoxDecoration(
@@ -169,7 +174,6 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // drag handle
                   Center(
                     child: Container(
                       margin: const EdgeInsets.only(top: 12, bottom: 8),
@@ -181,8 +185,6 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                       ),
                     ),
                   ),
-
-                  // title + close button
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -203,8 +205,6 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                       ],
                     ),
                   ),
-
-                  // progress bar
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
@@ -230,7 +230,6 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                       ],
                     ),
                   ),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Wrap(
@@ -251,8 +250,6 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-
-                  // questions grid
                   Expanded(
                     child: GridView.builder(
                       controller: scrollController,
@@ -266,9 +263,10 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                           ),
                       itemBuilder: (_, i) {
                         bool isMarked = markedQuestions.contains(i);
-                        bool isAttempted = selectedAnswers.containsKey(i);
+                        bool isAttempted = selectedAnswers.containsKey(
+                          questions[i]['id'],
+                        );
                         Color color;
-
                         if (isMarked && isAttempted) {
                           color = Colors.purple;
                         } else if (isMarked) {
@@ -302,8 +300,6 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                       },
                     ),
                   ),
-
-                  // submit button
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: ElevatedButton(
@@ -448,7 +444,8 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                   ),
                   const SizedBox(height: 20),
                   ...options.map((opt) {
-                    final isSelected = selectedAnswers[currentIndex] == opt;
+                    final questionId = q['id'];
+                    final isSelected = selectedAnswers[questionId] == opt;
                     return Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
@@ -464,7 +461,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                       ),
                       child: RadioListTile<String>(
                         value: opt,
-                        groupValue: selectedAnswers[currentIndex],
+                        groupValue: selectedAnswers[questionId],
                         onChanged: (val) {
                           if (val != null) selectAnswer(val);
                         },
