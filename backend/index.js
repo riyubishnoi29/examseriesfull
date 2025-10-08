@@ -129,7 +129,7 @@ app.post('/results', async (req, res) => {
     );
 
     // 3. Calculate score
-    let score = 0;
+    let score = 0.0;
     let correctCount = 0;
     let wrongCount = 0;
     let unattemptedCount = 0;
@@ -142,20 +142,21 @@ app.post('/results', async (req, res) => {
       }
 
       if (userAns.selected_option === q.correct_answer) {
-        score += q.marks;   // full marks
+        score += parseFloat(q.marks);   // full marks
         correctCount++;
       } else {
-        score -= negativeMarking;  // deduct negative
+        score -= parseFloat(negativeMarking);  // deduct negative
         wrongCount++;
       }
     }
 
-    if (score < 0) score = 0; // prevent negative total score
+    if (score < 0) score = 0.0; // prevent negative total score
 
+    score = parseFloat(score.toFixed(2));
     // 4. Save result in DB
     const [result] = await pool.query(
-      'INSERT INTO results (user_id, mock_id, score, time_taken_minutes) VALUES (?, ?, ?, ?)',
-      [user_id, mock_id, score, time_taken_minutes]
+      'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
+      [user_id, mock_id, score, parseFloat(mockTestRows[0].total_marks),  time_taken_minutes]
     );
 
     res.json({
