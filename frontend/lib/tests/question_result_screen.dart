@@ -72,7 +72,6 @@ class _ResultScreenState extends State<ResultScreen> {
     int wrongCount = 0;
     int skippedCount = 0;
 
-    // ✅ updated toString conversion
     for (int i = 0; i < widget.questions.length; i++) {
       final q = widget.questions[i];
       final correctAnswer = q['correct_answer']?.toString() ?? "";
@@ -211,8 +210,7 @@ class _ResultScreenState extends State<ResultScreen> {
           ...List.generate(widget.questions.length, (i) {
             final q = widget.questions[i];
             final correctAnswer = q['correct_answer']?.toString() ?? "";
-            final selected =
-                widget.selectedAnswers[q['id'].toString()] ?? ""; // ✅ updated
+            final selected = widget.selectedAnswers[q['id']] ?? "";
 
             bool isCorrect = selected == correctAnswer;
             bool isSkipped = selected.isEmpty;

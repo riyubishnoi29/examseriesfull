@@ -24,7 +24,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   bool isLoading = true;
   List questions = [];
   int currentIndex = 0;
-  Map<int, String> selectedAnswers = {}; // key = question id
+  Map<int, String> selectedAnswers = {};
   Set<int> markedQuestions = {};
   late int remainingSeconds;
   Timer? timer;

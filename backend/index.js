@@ -114,7 +114,7 @@ app.post('/results', async (req, res) => {
 
     // 1. Get mock test details (to fetch negative_marking)
     const [mockTestRows] = await pool.query(
-      'SELECT negative_marking ,total_marks FROM mock_tests WHERE id = ?',
+      'SELECT negative_marking FROM mock_tests WHERE id = ?',
       [mock_id]
     );
     if (!mockTestRows.length) {
@@ -408,6 +408,26 @@ app.get('/api/auth/profile', auth, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+// --- UPDATE PROFILE (protected) ---
+app.put('/api/auth/profile', auth, async (req, res) => {
+  try {
+    const { name, email, profile_picture } = req.body;
+
+    if (!name || !email)
+      return res.status(400).json({ success: false, message: 'name and email required' });
+
+    const [result] = await pool.query(
+      'UPDATE users SET name = ?, email = ?, profile_picture = ? WHERE id = ?',
+      [name, email, profile_picture || null, req.userId]
+    );
+
+    res.json({ success: true, message: 'Profile updated successfully' });
+  } catch (e) {
+    console.error('PROFILE UPDATE ERROR:', e);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 
 // Serve the frontend
 app.get('/', (req, res) => {
