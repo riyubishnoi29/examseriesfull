@@ -107,20 +107,22 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
 });
 
 // Save result (insert with negative marking calculation)
+// Save result (insert with negative marking calculation)
 app.post('/results', async (req, res) => {
   try {
     const { user_id, mock_id, answers, time_taken_minutes } = req.body;
-    // answers = array of { question_id, selected_option }
 
-    // 1. Get mock test details (to fetch negative_marking)
+    // 1. Get mock test details (including total_marks)
     const [mockTestRows] = await pool.query(
-      'SELECT negative_marking FROM mock_tests WHERE id = ?',
+      'SELECT negative_marking, total_marks FROM mock_tests WHERE id = ?',
       [mock_id]
     );
     if (!mockTestRows.length) {
       return res.status(404).json({ error: "Mock test not found" });
     }
-    const negativeMarking = mockTestRows[0].negative_marking || 0;
+
+    const negativeMarking = parseFloat(mockTestRows[0].negative_marking || 0);
+    const totalMarks = parseFloat(mockTestRows[0].total_marks || 0);
 
     // 2. Get all questions for this mock test
     const [questions] = await pool.query(
@@ -142,27 +144,27 @@ app.post('/results', async (req, res) => {
       }
 
       if (userAns.selected_option === q.correct_answer) {
-        score += parseFloat(q.marks);   // full marks
+        score += parseFloat(q.marks || 0);
         correctCount++;
       } else {
-        score -= parseFloat(negativeMarking);  // deduct negative
+        score -= negativeMarking;
         wrongCount++;
       }
     }
 
-    if (score < 0) score = 0.0; // prevent negative total score
+    if (score < 0) score = 0.0;
+    const scoreToSave = parseFloat(score.toFixed(2)) || 0;
 
-    score = parseFloat(score.toFixed(2));
-    // 4. Save result in DB
+    // 4. Save result
     const [result] = await pool.query(
       'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
-      [user_id, mock_id, score, parseFloat(mockTestRows[0].total_marks),  time_taken_minutes]
+      [user_id, mock_id, scoreToSave, totalMarks, time_taken_minutes]
     );
 
     res.json({
       message: 'Result saved with negative marking',
       id: result.insertId,
-      score,
+      score: scoreToSave,
       correctCount,
       wrongCount,
       unattemptedCount,
@@ -174,6 +176,7 @@ app.post('/results', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // Add new question (editor + admin allowed)
