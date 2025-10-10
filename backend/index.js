@@ -8,6 +8,7 @@ const http = require('http');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const multer = require('multer');
 
 // --- Helper for JWT ---
 const signToken = (payload) =>
@@ -409,7 +410,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/profile', auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, name, email, created_at FROM users WHERE id = ?',
+      'SELECT id, name, email, profile_picture , created_at FROM users WHERE id = ?',
       [req.userId]
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'User not found' });
@@ -440,6 +441,7 @@ app.post('/api/auth/upload-profile', upload.single('profile_picture'), async (re
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 // Serve the frontend
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
