@@ -78,20 +78,7 @@ class _MainScreenState extends State<MainScreen> {
     return SafeArea(
       // Safe area added to handle bottom navigation
       child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.black,
-          elevation: 0,
-          actions: [
-            IconButton(
-              icon: Icon(Icons.language, color: Colors.white),
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: Icon(Icons.menu, color: Colors.white),
-              onPressed: () {},
-            ),
-          ],
-        ),
+        appBar: AppBar(backgroundColor: Colors.black, elevation: 0),
         body: _pages[_selectedIndex],
         bottomNavigationBar: SafeArea(
           top: false,

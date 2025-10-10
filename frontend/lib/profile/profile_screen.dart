@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:examtrack/services/api_service.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -8,6 +10,9 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? user;
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -15,9 +20,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     loadProfile();
   }
 
+  // Load user profile from API
   void loadProfile() async {
     final profile = await ApiService.getProfile();
     setState(() => user = profile);
+  }
+
+  // Pick image and upload
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile == null) return;
+
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+        _isUploading = true;
+      });
+
+      final result = await ApiService.uploadProfilePicture(_selectedImage!);
+
+      if (result != null && result['success'] == true) {
+        setState(() {
+          user!['profile_picture'] = result['imageUrl'];
+          _isUploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Profile picture uploaded successfully'),
+          ),
+        );
+      } else {
+        setState(() => _isUploading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('❌ Upload failed')));
+      }
+    } catch (e) {
+      setState(() => _isUploading = false);
+      print('Error uploading image: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('❌ Something went wrong')));
+    }
   }
 
   @override
@@ -54,40 +98,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Column(
                 children: [
-                  // Profile Picture
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white,
-                    child: CircleAvatar(
-                      radius: 46,
-                      backgroundImage: NetworkImage(
-                        user!['profile_picture'] ??
-                            'https://www.gravatar.com/avatar/placeholder',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Stack(
+                    alignment: Alignment.bottomRight,
                     children: [
-                      const SizedBox(width: 8),
                       GestureDetector(
-                        onTap: () {},
-                        child: const Icon(
-                          Icons.edit,
-                          color: Colors.white70,
-                          size: 20,
+                        onTap: _pickAndUploadImage,
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.white,
+                          child: CircleAvatar(
+                            radius: 46,
+                            backgroundImage:
+                                _selectedImage != null
+                                    ? FileImage(_selectedImage!)
+                                    : NetworkImage(
+                                          user!['profile_picture'] != null &&
+                                                  user!['profile_picture'] != ''
+                                              ? user!['profile_picture']
+                                              : 'https://www.gravatar.com/avatar/placeholder',
+                                        )
+                                        as ImageProvider,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.white,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: Icon(
+                              Icons.edit,
+                              size: 18,
+                              color: Colors.redAccent,
+                            ),
+                            onPressed: _pickAndUploadImage,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 15),
+                  if (_isUploading)
+                    const Text(
+                      'Uploading...',
+                      style: TextStyle(color: Colors.white70),
+                    ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -111,7 +173,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       value: user!['created_at'],
                     ),
                     const SizedBox(height: 30),
-                    // Logout Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -144,7 +205,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Reusable info card widget (Black + Red theme)
   Widget _infoCard({
     required IconData icon,
     required String label,

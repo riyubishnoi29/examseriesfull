@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:examtrack/model/result_model.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -86,7 +87,7 @@ class ApiService {
     if (token == null) return null;
 
     final response = await http.get(
-      Uri.parse('$baseUrl/api/auth/profile'), // ✅ Fixed
+      Uri.parse('$baseUrl/api/auth/profile'),
       headers: {"Authorization": "Bearer $token"},
     );
 
@@ -94,6 +95,39 @@ class ApiService {
       return jsonDecode(response.body)["user"];
     }
     return null;
+  }
+
+  // Upload profile picture
+  static Future<Map<String, dynamic>?> uploadProfilePicture(
+    File imageFile,
+  ) async {
+    try {
+      final token = await storage.read(key: 'token');
+      if (token == null) return null;
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/api/auth/upload-profile'),
+      );
+
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(
+        await http.MultipartFile.fromPath('profile_picture', imageFile.path),
+      );
+
+      var response = await request.send();
+      final respStr = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        return jsonDecode(respStr);
+      } else {
+        print('Upload error: $respStr');
+        return null;
+      }
+    } catch (e) {
+      print('Exception in uploadProfilePicture: $e');
+      return null;
+    }
   }
 
   // --- Logout ---

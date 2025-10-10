@@ -37,7 +37,13 @@ class _TestScreenState extends State<TestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(title: Text("Exams"), backgroundColor: Colors.black),
+      appBar: AppBar(
+        title: Text(
+          "Exams ~ ",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: Colors.black,
+      ),
       body:
           isLoading
               ? Center(child: CircularProgressIndicator())
