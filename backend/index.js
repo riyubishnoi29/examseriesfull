@@ -8,14 +8,15 @@ const http = require('http');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
-const multer = require('multer');
+
+
 
 // --- Helper for JWT ---
 const signToken = (payload) =>
   jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 const app = express();
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use(express.static(path.join(__dirname)));
 app.use(cors());
 app.use(express.json());
@@ -31,16 +32,7 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT,
 });
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, 'uploads')); 
-  },
-  filename: function (req, file, cb) {
-    const uniqueName = Date.now() + '-' + file.originalname;
-    cb(null, uniqueName);
-  }
-});
-const upload = multer({ storage: storage });
+
 
 // --- API Routes ---
 // --- Middleware: role-based auth ---
@@ -422,25 +414,6 @@ app.get('/api/auth/profile', auth, async (req, res) => {
   }
 });
 
-// Route for uploading profile picture
-app.post('/api/auth/upload-profile', upload.single('profile_picture'), async (req, res) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.id;
-
-    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-
-    await pool.query('UPDATE users SET profile_picture = ? WHERE id = ?', [imageUrl, userId]);
-
-    res.json({ success: true, imageUrl });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 
 // Serve the frontend
 app.get('/', (req, res) => {
