@@ -14,6 +14,7 @@ const signToken = (payload) =>
   jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 const app = express();
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname)));
 app.use(cors());
 app.use(express.json());
@@ -28,6 +29,17 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   port: process.env.DB_PORT,
 });
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, 'uploads')); 
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = Date.now() + '-' + file.originalname;
+    cb(null, uniqueName);
+  }
+});
+const upload = multer({ storage: storage });
 
 // --- API Routes ---
 // --- Middleware: role-based auth ---
@@ -408,27 +420,26 @@ app.get('/api/auth/profile', auth, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-// --- UPDATE PROFILE (protected) ---
-app.put('/api/auth/profile', auth, async (req, res) => {
+
+// Route for uploading profile picture
+app.post('/api/auth/upload-profile', upload.single('profile_picture'), async (req, res) => {
   try {
-    const { name, email, profile_picture } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
-    if (!name || !email)
-      return res.status(400).json({ success: false, message: 'name and email required' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
 
-    const [result] = await pool.query(
-      'UPDATE users SET name = ?, email = ?, profile_picture = ? WHERE id = ?',
-      [name, email, profile_picture || null, req.userId]
-    );
+    const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
 
-    res.json({ success: true, message: 'Profile updated successfully' });
-  } catch (e) {
-    console.error('PROFILE UPDATE ERROR:', e);
-    res.status(500).json({ success: false, message: 'Server error' });
+    await pool.query('UPDATE users SET profile_picture = ? WHERE id = ?', [imageUrl, userId]);
+
+    res.json({ success: true, imageUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
-
-
 // Serve the frontend
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
@@ -443,6 +454,8 @@ app.get('/admin/login', (req, res) => {
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
+
+
 
 //test db connection
 async function testDbConnection() {
