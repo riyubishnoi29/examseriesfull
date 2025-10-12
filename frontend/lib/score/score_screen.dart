@@ -1,3 +1,4 @@
+import 'package:examtrack/tests/mock_questions_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -12,12 +13,40 @@ class ScoreScreen extends StatefulWidget {
 }
 
 class _ScoreScreenState extends State<ScoreScreen> {
-  late Future<List<ResultModel>> futureResults;
+  List<ResultModel> results = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    futureResults = ApiService.getUserResults();
+    _fetchResults();
+  }
+
+  Future<void> _fetchResults() async {
+    setState(() => isLoading = true);
+    try {
+      final fetchedResults = await ApiService.getUserResults();
+      // Latest attempt per mockId
+      final latestResults = fetchedResults.fold<List<ResultModel>>([], (
+        prev,
+        elem,
+      ) {
+        if (!prev.any((r) => r.mockId == elem.mockId)) {
+          prev.add(elem);
+        }
+        return prev;
+      });
+
+      if (mounted) {
+        setState(() {
+          results = latestResults;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("❌ Error fetching results: $e");
+      if (mounted) setState(() => isLoading = false);
+    }
   }
 
   Color getBorderColor(int score, int total) {
@@ -49,205 +78,225 @@ class _ScoreScreenState extends State<ScoreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF121212),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF3B30)),
+        ),
+      );
+    }
+
+    if (results.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF121212),
+        body: Center(
+          child: Text(
+            "No results yet.",
+            style: TextStyle(fontSize: 16, color: Colors.white70),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-
         title: const Text(
           "Your Achievements ~",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
-      body: FutureBuilder<List<ResultModel>>(
-        future: futureResults,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF3B30)),
-            );
-          } else if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                "Error: ${snapshot.error}",
-                style: const TextStyle(color: Colors.redAccent),
-              ),
-            );
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text(
-                "No results yet.",
-                style: TextStyle(fontSize: 16, color: Colors.white70),
-              ),
-            );
-          }
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: results.length,
+        itemBuilder: (context, index) {
+          final r = results[index];
+          final percent = r.totalMarks > 0 ? r.score / r.totalMarks : 0.0;
+          final borderColor = getBorderColor(r.score, r.totalMarks);
+          final icon = getPerformanceIcon(r.score, r.totalMarks);
+          final formattedDate = DateFormat(
+            'EEE, MMM d',
+          ).format(r.dateTaken.toLocal());
 
-          // ✅ Remove duplicates based on mockId
-          final results = snapshot.data!.fold<List<ResultModel>>([], (
-            previousValue,
-            element,
-          ) {
-            if (!previousValue.any((r) => r.mockId == element.mockId)) {
-              previousValue.add(element);
-            }
-            return previousValue;
-          });
-
-          return ListView.builder(
+          return Container(
+            margin: const EdgeInsets.symmetric(vertical: 10),
             padding: const EdgeInsets.all(16),
-            itemCount: results.length,
-            itemBuilder: (context, index) {
-              final r = results[index];
-              final percent = r.totalMarks > 0 ? r.score / r.totalMarks : 0.0;
-              final borderColor = getBorderColor(r.score, r.totalMarks);
-              final icon = getPerformanceIcon(r.score, r.totalMarks);
-              final formattedDate = DateFormat(
-                'EEE, MMM d',
-              ).format(r.dateTaken.toLocal());
-
-              return Container(
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Circular progress + test info
+                Row(
                   children: [
-                    // Circular progress + test info
-                    Row(
+                    Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox(
-                              width: 70,
-                              height: 70,
-                              child: CircularProgressIndicator(
-                                value: percent,
-                                strokeWidth: 7,
-                                backgroundColor: Colors.grey[800],
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Color(0xFFFF3B30),
-                                ),
-                              ),
+                        SizedBox(
+                          width: 70,
+                          height: 70,
+                          child: CircularProgressIndicator(
+                            value: percent,
+                            strokeWidth: 7,
+                            backgroundColor: Colors.grey[800],
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              const Color(0xFFFF3B30),
                             ),
-                            Text(
-                              "${(percent * 100).toStringAsFixed(0)}%",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                r.title,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                r.score > 0
-                                    ? "Score: ${r.score}/${r.totalMarks} • Time: ${r.timeTakenMinutes} min"
-                                    : "Test not attempted",
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                formattedDate,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white38,
-                                ),
-                              ),
-                            ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: borderColor.withOpacity(0.15),
-                            shape: BoxShape.circle,
+                        Text(
+                          "${(percent * 100).toStringAsFixed(0)}%",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.white,
                           ),
-                          child: icon,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    // Attempted / Not Attempted
-                    Row(
-                      children: [
-                        _attemptBox(
-                          "Attempted",
-                          r.attemptedQuestions,
-                          Colors.greenAccent,
-                        ),
-                        const SizedBox(width: 10),
-                        _attemptBox(
-                          "Not Attempted",
-                          r.notAttemptedQuestions,
-                          Colors.redAccent,
-                        ),
-                      ],
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.title,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            r.score > 0
+                                ? "Score: ${r.score}/${r.totalMarks} • Time: ${r.timeTakenMinutes} min"
+                                : "Test not attempted",
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            formattedDate,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white38,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: borderColor.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: icon,
+                    ),
                   ],
                 ),
-              );
-            },
+                const SizedBox(height: 16),
+
+                // ✅ Single Button (Take/Retry Test or Perfect)
+                Center(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          percent >= 1.0 ? Colors.amber : Colors.redAccent,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () async {
+                      if (percent >= 1.0) {
+                        showDialog(
+                          context: context,
+                          builder:
+                              (_) => AlertDialog(
+                                backgroundColor: const Color(0xFF1E1E1E),
+                                title: const Text(
+                                  "🎉 Perfect Score!",
+                                  style: TextStyle(color: Colors.amber),
+                                ),
+                                content: Text(
+                                  "You scored ${r.score}/${r.totalMarks}. Amazing!",
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text(
+                                      "OK",
+                                      style: TextStyle(color: Colors.amber),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                        );
+                      } else {
+                        final updatedResult = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (_) => QuestionsScreen(
+                                  mockId: r.mockId,
+                                  mockName: r.title,
+                                  timeLimit: r.totalMarks,
+                                  negativeMarking: r.negativeMarking,
+                                ),
+                          ),
+                        );
+
+                        if (updatedResult != null &&
+                            updatedResult is ResultModel) {
+                          // ✅ Update the local list immediately
+                          setState(() {
+                            final idx = results.indexWhere(
+                              (res) => res.mockId == updatedResult.mockId,
+                            );
+                            if (idx != -1) {
+                              results[idx] = updatedResult;
+                            } else {
+                              results.add(updatedResult);
+                            }
+                          });
+                        }
+                      }
+                    },
+                    child: Text(
+                      percent >= 1.0
+                          ? "Perfect Score!"
+                          : (r.score > 0 ? "Retake Test" : "Take Test"),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _attemptBox(String label, int count, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(
-              "$count",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: color,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(color: color.withOpacity(0.7), fontSize: 12),
-            ),
-          ],
-        ),
       ),
     );
   }

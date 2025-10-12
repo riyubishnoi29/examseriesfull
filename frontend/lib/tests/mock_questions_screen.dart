@@ -96,10 +96,12 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 
   void showResult() async {
     timer?.cancel();
+
     double score = 0;
     double totalMarks = 0;
 
     for (var q in questions) {
+      // Safe parsing to prevent NaN errors
       double marks = double.tryParse(q['marks']?.toString() ?? "1") ?? 1;
       double negativeMarks =
           double.tryParse(q['negative_marks']?.toString() ?? "0") ?? 0;
@@ -118,17 +120,23 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
     int timeTakenSeconds = widget.timeLimit * 60 - remainingSeconds;
     int timeTakenMinutes = (timeTakenSeconds / 60).ceil();
 
-    await ApiService.saveResult(
-      widget.mockId,
-      score,
-      totalMarks,
-      timeTakenMinutes,
-      widget.mockName,
-      selectedAnswers.entries
-          .map((e) => {'question_id': e.key, 'selected_option': e.value})
-          .toList(),
-    );
+    // ✅ Save result safely
+    try {
+      await ApiService.saveResult(
+        widget.mockId,
+        score,
+        totalMarks,
+        timeTakenMinutes,
+        widget.mockName,
+        selectedAnswers.entries
+            .map((e) => {'question_id': e.key, 'selected_option': e.value})
+            .toList(),
+      );
+    } catch (e) {
+      print("Error saving result: $e");
+    }
 
+    // Navigate to ResultScreen
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(

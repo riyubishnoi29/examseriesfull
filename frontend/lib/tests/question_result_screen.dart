@@ -43,10 +43,14 @@ class _ResultScreenState extends State<ResultScreen> {
     setState(() => _isSaving = true);
 
     try {
+      // Ensure score & total are not NaN or null
+      double safeScore = widget.score.isNaN ? 0 : widget.score;
+      double safeTotal = widget.total.isNaN ? 0 : widget.total;
+
       bool success = await ApiService.saveResult(
         widget.mockId,
-        widget.score,
-        widget.total,
+        safeScore,
+        safeTotal,
         widget.timeTakenMinutes,
         widget.title,
         widget.selectedAnswers.entries
@@ -86,7 +90,8 @@ class _ResultScreenState extends State<ResultScreen> {
       }
     }
 
-    double percentage = (widget.score / widget.total) * 100;
+    double percentage =
+        widget.total != 0 ? (widget.score / widget.total) * 100 : 0;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -145,7 +150,8 @@ class _ResultScreenState extends State<ResultScreen> {
                       width: 100,
                       height: 100,
                       child: CircularProgressIndicator(
-                        value: widget.score / widget.total,
+                        value:
+                            widget.total != 0 ? widget.score / widget.total : 0,
                         strokeWidth: 10,
                         backgroundColor: Colors.grey.shade700,
                         valueColor: const AlwaysStoppedAnimation(
@@ -173,7 +179,6 @@ class _ResultScreenState extends State<ResultScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -183,7 +188,6 @@ class _ResultScreenState extends State<ResultScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
                 Text(
                   "Time Taken: ${widget.timeTakenMinutes} min",
                   style: const TextStyle(color: Colors.white70),
@@ -196,7 +200,6 @@ class _ResultScreenState extends State<ResultScreen> {
             ),
           ),
           const SizedBox(height: 24),
-
           const Text(
             "Review Questions",
             style: TextStyle(
@@ -206,7 +209,6 @@ class _ResultScreenState extends State<ResultScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
           ...List.generate(widget.questions.length, (i) {
             final q = widget.questions[i];
             final correctAnswer = q['correct_answer']?.toString() ?? "";
@@ -235,7 +237,6 @@ class _ResultScreenState extends State<ResultScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-
                     ...List<String>.from(q['options']).map((opt) {
                       bool isSelected = selected == opt;
                       bool isAnswer = opt == correctAnswer;
@@ -282,7 +283,6 @@ class _ResultScreenState extends State<ResultScreen> {
                         ),
                       );
                     }),
-
                     if (isSkipped)
                       const Padding(
                         padding: EdgeInsets.only(top: 6),

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+
 import 'package:examtrack/model/result_model.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -97,45 +97,12 @@ class ApiService {
     return null;
   }
 
-  // Upload profile picture
-  static Future<Map<String, dynamic>?> uploadProfilePicture(
-    File imageFile,
-  ) async {
-    try {
-      final token = await storage.read(key: 'token');
-      if (token == null) return null;
-
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/api/auth/upload-profile'),
-      );
-
-      request.headers['Authorization'] = 'Bearer $token';
-      request.files.add(
-        await http.MultipartFile.fromPath('profile_picture', imageFile.path),
-      );
-
-      var response = await request.send();
-      final respStr = await response.stream.bytesToString();
-
-      if (response.statusCode == 200) {
-        return jsonDecode(respStr);
-      } else {
-        print('Upload error: $respStr');
-        return null;
-      }
-    } catch (e) {
-      print('Exception in uploadProfilePicture: $e');
-      return null;
-    }
-  }
-
   // --- Logout ---
   static Future<void> logout() async {
     await storage.delete(key: "token");
   }
 
-  //save result
+  // Save result
   static Future<bool> saveResult(
     int mockId,
     double score,
@@ -145,13 +112,22 @@ class ApiService {
     List<Map<String, dynamic>> answers,
   ) async {
     final token = await storage.read(key: "token");
-    if (token == null) return false;
+    if (token == null) {
+      print("❌ Token is null, user not logged in");
+      return false;
+    }
 
     // Decode token to get user id
     final payload = jsonDecode(
       ascii.decode(base64.decode(base64.normalize(token.split(".")[1]))),
     );
     final userId = payload['id'];
+
+    print("🔹 User ID from token: $userId");
+    print("🔹 Score: $score, Total Marks: $totalMarks");
+    print("🔹 Mock ID: $mockId");
+    print("🔹 Time Taken: $timeTakenMinutes minutes");
+    print("🔹 Answers: $answers");
 
     final Map<String, dynamic> resultData = {
       "user_id": userId,
@@ -168,6 +144,9 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: json.encode(resultData),
     );
+
+    print("🔹 API Status Code: ${response.statusCode}");
+    print("🔹 API Response Body: ${response.body}");
 
     return response.statusCode == 200;
   }
