@@ -1,7 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
-require('dotenv').config();  
+require('dotenv').config();
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
@@ -25,7 +25,7 @@ console.log("using port ", process.env.DB_PORT);
 
 // MySQL connection pool using environment variables
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,      
+  host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
@@ -56,7 +56,7 @@ const roleAuth = (allowedRoles) => {
         return res.status(403).json({ success: false, message: '❌ Access denied' });
       }
 
-      req.userRole = userRole; 
+      req.userRole = userRole;
       next();
     } catch {
       return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
@@ -110,36 +110,30 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-//   Save result safely with NaN protection
+
+// Save result (insert with negative marking calculation)
 app.post('/results', async (req, res) => {
   try {
     const { user_id, mock_id, answers, time_taken_minutes } = req.body;
-    if (!user_id || !mock_id) {
-      return res.status(400).json({ error: "Missing user_id or mock_id" });
-    }
+    // answers = array of { question_id, selected_option }
 
-    // 1️⃣ Fetch mock test details (negative + total marks)
+    // 1. Get mock test details (to fetch negative_marking)
     const [mockTestRows] = await pool.query(
-      'SELECT negative_marking, total_marks FROM mock_tests WHERE id = ?',
+      'SELECT negative_marking FROM mock_tests WHERE id = ?',
       [mock_id]
     );
     if (!mockTestRows.length) {
       return res.status(404).json({ error: "Mock test not found" });
     }
+    const negativeMarking = mockTestRows[0].negative_marking || 0;
 
-    let negativeMarking = parseFloat(mockTestRows[0].negative_marking);
-    let totalMarks = parseFloat(mockTestRows[0].total_marks);
-
-    if (isNaN(negativeMarking) || !isFinite(negativeMarking)) negativeMarking = 0;
-    if (isNaN(totalMarks) || !isFinite(totalMarks)) totalMarks = 0;
-
-    // 2️⃣ Fetch all questions
+    // 2. Get all questions for this mock test
     const [questions] = await pool.query(
       'SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?',
       [mock_id]
     );
 
-    // 3️⃣ Calculate score
+    // 3. Calculate score
     let score = 0.0;
     let correctCount = 0;
     let wrongCount = 0;
@@ -153,31 +147,32 @@ app.post('/results', async (req, res) => {
       }
 
       if (userAns.selected_option === q.correct_answer) {
-        score += parseFloat(q.marks || 0);
+        score += parseFloat(q.marks);   // full marks
         correctCount++;
       } else {
-        score -= parseFloat(negativeMarking);
+        score -= parseFloat(negativeMarking);  // deduct negative
         wrongCount++;
       }
     }
 
-    if (score < 0 || isNaN(score) || !isFinite(score)) score = 0.0;
-    score = parseFloat(score.toFixed(2));
+    if (score < 0) score = 0.0; // prevent negative total score
 
-    // 4️⃣ Insert result safely
+    score = parseFloat(score.toFixed(2));
+     const totalMarks = parseFloat(mockTestRows[0].total_marks) || 0.0;
+    // 4. Save result in DB
     const [result] = await pool.query(
-      'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
-      [user_id, mock_id, score, totalMarks, time_taken_minutes || 0]
-    );
+        'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
+        [user_id, mock_id, score, totalMarks, time_taken_minutes]
+      );
+
 
     res.json({
-      message: '✅ Result saved successfully',
+      message: 'Result saved with negative marking',
       id: result.insertId,
       score,
       correctCount,
       wrongCount,
       unattemptedCount,
-      totalMarks,
       negativeMarking
     });
 
@@ -228,11 +223,11 @@ app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req,
   try {
 
     const questionId = req.params.id;
-    const { status } = req.body; 
+    const { status } = req.body;
     console.log("PATCH BODY:", req.body);
-   
+
     let dbStatus;
-    let s = status.toLowerCase(); 
+    let s = status.toLowerCase();
     if (s === 'approved' || s === 'live') dbStatus = 'live';
     else if (s === 'rejected' || s === 'draft') dbStatus = 'draft';
     else return res.status(400).json({ error: "Invalid status" });
@@ -363,7 +358,7 @@ app.post('/api/auth/signup', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
       'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hash, 'user'] 
+      [name, email, hash, 'user']
     );
 
     const user = { id: result.insertId, name, email, role: 'user' };
