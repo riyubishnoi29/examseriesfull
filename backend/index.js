@@ -125,7 +125,10 @@ app.post('/results', async (req, res) => {
     if (!mockTestRows.length) {
       return res.status(404).json({ error: "Mock test not found" });
     }
-    const negativeMarking = mockTestRows[0].negative_marking || 0;
+  const negativeMarking = parseFloat(mockTestRows[0].negative_marking) || 0.0;
+    const totalMarks = parseFloat(mockTestRows[0].total_marks) || 0.0;
+
+
 
     // 2. Get all questions for this mock test
     const [questions] = await pool.query(
@@ -158,7 +161,7 @@ app.post('/results', async (req, res) => {
     if (score < 0) score = 0.0; // prevent negative total score
 
     score = parseFloat(score.toFixed(2));
-     const totalMarks = parseFloat(mockTestRows[0].total_marks) || 0.0;
+   
     // 4. Save result in DB
     const [result] = await pool.query(
         'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
