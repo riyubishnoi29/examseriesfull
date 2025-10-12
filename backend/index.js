@@ -1,7 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
-require('dotenv').config();
+require('dotenv').config();  
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
@@ -25,7 +25,7 @@ console.log("using port ", process.env.DB_PORT);
 
 // MySQL connection pool using environment variables
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
+  host: process.env.DB_HOST,      
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
@@ -56,7 +56,7 @@ const roleAuth = (allowedRoles) => {
         return res.status(403).json({ success: false, message: '❌ Access denied' });
       }
 
-      req.userRole = userRole;
+      req.userRole = userRole; 
       next();
     } catch {
       return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
@@ -110,33 +110,31 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-// Save result (insert with negative marking calculation)
+// Save result (with negative marking, safe parsing)
 app.post('/results', async (req, res) => {
   try {
     const { user_id, mock_id, answers, time_taken_minutes } = req.body;
     // answers = array of { question_id, selected_option }
 
-    // 1. Get mock test details (to fetch negative_marking)
+    // 1️⃣ Get mock test details (to fetch negative_marking & total_marks)
     const [mockTestRows] = await pool.query(
-      'SELECT negative_marking FROM mock_tests WHERE id = ?',
+      'SELECT negative_marking, total_marks FROM mock_tests WHERE id = ?',
       [mock_id]
     );
     if (!mockTestRows.length) {
       return res.status(404).json({ error: "Mock test not found" });
     }
-  const negativeMarking = parseFloat(mockTestRows[0].negative_marking) || 0.0;
-    const totalMarks = parseFloat(mockTestRows[0].total_marks) || 0.0;
 
+    const negativeMarking = parseFloat(mockTestRows[0].negative_marking) || 0;
+    const totalMarks = parseFloat(mockTestRows[0].total_marks) || 0;
 
-
-    // 2. Get all questions for this mock test
+    // 2️⃣ Get all questions for this mock test
     const [questions] = await pool.query(
       'SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?',
       [mock_id]
     );
 
-    // 3. Calculate score
+    // 3️⃣ Calculate score
     let score = 0.0;
     let correctCount = 0;
     let wrongCount = 0;
@@ -144,33 +142,33 @@ app.post('/results', async (req, res) => {
 
     for (let q of questions) {
       const userAns = answers.find(a => a.question_id === q.id);
+      const marks = parseFloat(q.marks) || 0;
+
       if (!userAns || !userAns.selected_option) {
         unattemptedCount++;
         continue;
       }
 
       if (userAns.selected_option === q.correct_answer) {
-        score += parseFloat(q.marks);   // full marks
+        score += marks;   // full marks
         correctCount++;
       } else {
-        score -= parseFloat(negativeMarking);  // deduct negative
+        score -= negativeMarking;  // deduct negative
         wrongCount++;
       }
     }
 
     if (score < 0) score = 0.0; // prevent negative total score
-
     score = parseFloat(score.toFixed(2));
-   
-    // 4. Save result in DB
-    const [result] = await pool.query(
-        'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
-        [user_id, mock_id, score, totalMarks, time_taken_minutes]
-      );
 
+    // 4️⃣ Save result in DB
+    const [result] = await pool.query(
+      'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
+      [user_id, mock_id, score, totalMarks, time_taken_minutes]
+    );
 
     res.json({
-      message: 'Result saved with negative marking',
+      message: 'Result saved successfully with negative marking',
       id: result.insertId,
       score,
       correctCount,
@@ -184,7 +182,6 @@ app.post('/results', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // Add new question (editor + admin allowed)
 app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
@@ -226,11 +223,11 @@ app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req,
   try {
 
     const questionId = req.params.id;
-    const { status } = req.body;
+    const { status } = req.body; 
     console.log("PATCH BODY:", req.body);
-
+   
     let dbStatus;
-    let s = status.toLowerCase();
+    let s = status.toLowerCase(); 
     if (s === 'approved' || s === 'live') dbStatus = 'live';
     else if (s === 'rejected' || s === 'draft') dbStatus = 'draft';
     else return res.status(400).json({ error: "Invalid status" });
@@ -361,7 +358,7 @@ app.post('/api/auth/signup', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
       'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hash, 'user']
+      [name, email, hash, 'user'] 
     );
 
     const user = { id: result.insertId, name, email, role: 'user' };
