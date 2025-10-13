@@ -268,7 +268,6 @@ class _ScoreScreenState extends State<ScoreScreen> {
 
                         if (updatedResult != null &&
                             updatedResult is ResultModel) {
-                          // ✅ Update the local list immediately
                           setState(() {
                             final idx = results.indexWhere(
                               (res) => res.mockId == updatedResult.mockId,

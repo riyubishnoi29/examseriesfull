@@ -43,14 +43,9 @@ class _ResultScreenState extends State<ResultScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // ✅ Safe double conversion (no NaN possible)
-      double safeScore = double.tryParse(widget.score.toString()) ?? 0.0;
-      double safeTotal = double.tryParse(widget.total.toString()) ?? 0.0;
-
-      if (safeTotal.isNaN || safeTotal.isInfinite) safeTotal = 0.0;
-      if (safeScore.isNaN || safeScore.isInfinite) safeScore = 0.0;
-
-      print("✅ Safe values → Score: $safeScore, Total: $safeTotal");
+      // Ensure score & total are safe numbers
+      double safeScore = widget.score.isFinite ? widget.score : 0;
+      double safeTotal = widget.total.isFinite ? widget.total : 0;
 
       bool success = await ApiService.saveResult(
         widget.mockId,
@@ -59,22 +54,11 @@ class _ResultScreenState extends State<ResultScreen> {
         widget.timeTakenMinutes,
         widget.title,
         widget.selectedAnswers.entries
-            .map(
-              (e) => {
-                'question_id': e.key,
-                'selected_option': e.value.toString(),
-              },
-            )
+            .map((e) => {'question_id': e.key, 'selected_option': e.value})
             .toList(),
       );
 
-      if (success) {
-        if (!mounted) return;
-        setState(() => _isSaved = true);
-        print("✅ Result saved successfully");
-      } else {
-        print("❌ Result not saved");
-      }
+      if (success && mounted) setState(() => _isSaved = true);
     } catch (e) {
       debugPrint("❌ Error saving result: $e");
     } finally {
