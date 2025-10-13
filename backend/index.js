@@ -1,7 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
-require('dotenv').config();  
+require('dotenv').config();
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
@@ -25,7 +25,7 @@ console.log("using port ", process.env.DB_PORT);
 
 // MySQL connection pool using environment variables
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,      
+  host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
@@ -56,7 +56,7 @@ const roleAuth = (allowedRoles) => {
         return res.status(403).json({ success: false, message: '❌ Access denied' });
       }
 
-      req.userRole = userRole; 
+      req.userRole = userRole;
       next();
     } catch {
       return res.status(401).json({ success: false, message: 'Invalid/Expired token' });
@@ -161,8 +161,9 @@ app.post('/results', async (req, res) => {
     // 4. Save result in DB
     const [result] = await pool.query(
       'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
-      [user_id, mock_id, score, parseFloat(mockTestRows[0].total_marks),  time_taken_minutes]
+      [user_id, mock_id, score, totalMarks, time_taken_minutes]
     );
+
 
     res.json({
       message: 'Result saved with negative marking',
@@ -221,11 +222,11 @@ app.patch('/questions/:id/status', roleAuth(['admin', 'publisher']), async (req,
   try {
 
     const questionId = req.params.id;
-    const { status } = req.body; 
+    const { status } = req.body;
     console.log("PATCH BODY:", req.body);
-   
+
     let dbStatus;
-    let s = status.toLowerCase(); 
+    let s = status.toLowerCase();
     if (s === 'approved' || s === 'live') dbStatus = 'live';
     else if (s === 'rejected' || s === 'draft') dbStatus = 'draft';
     else return res.status(400).json({ error: "Invalid status" });
@@ -356,7 +357,7 @@ app.post('/api/auth/signup', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
       'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, hash, 'user'] 
+      [name, email, hash, 'user']
     );
 
     const user = { id: result.insertId, name, email, role: 'user' };
