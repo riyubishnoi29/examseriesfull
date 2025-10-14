@@ -1,7 +1,6 @@
-import 'package:examtrack/tests/mock_questions_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
-
 import '../services/api_service.dart';
 import '../model/result_model.dart';
 
@@ -26,14 +25,13 @@ class _ScoreScreenState extends State<ScoreScreen> {
     setState(() => isLoading = true);
     try {
       final fetchedResults = await ApiService.getUserResults();
-      // Latest attempt per mockId
+
+      // latest result per mockId
       final latestResults = fetchedResults.fold<List<ResultModel>>([], (
         prev,
         elem,
       ) {
-        if (!prev.any((r) => r.mockId == elem.mockId)) {
-          prev.add(elem);
-        }
+        if (!prev.any((r) => r.mockId == elem.mockId)) prev.add(elem);
         return prev;
       });
 
@@ -49,254 +47,189 @@ class _ScoreScreenState extends State<ScoreScreen> {
     }
   }
 
-  Color getBorderColor(int score, int total) {
-    double percent = total > 0 ? (score / total) * 100 : 0;
-    if (percent >= 80) return Colors.greenAccent;
-    if (percent >= 50) return Colors.orangeAccent;
-    if (percent > 0) return const Color(0xFFFF3B30);
+  Color getStatusColor(double percent) {
+    if (percent >= 0.8) return Colors.lightGreen;
+    if (percent >= 0.5) return Colors.orange[300]!;
+    if (percent > 0) return Colors.redAccent;
     return Colors.grey;
   }
 
-  Icon getPerformanceIcon(int score, int total) {
-    double percent = total > 0 ? (score / total) * 100 : 0;
-    if (percent >= 80)
-      return const Icon(Icons.emoji_events, color: Colors.amber, size: 28);
-    if (percent >= 50)
-      return const Icon(
-        Icons.emoji_events,
-        color: Colors.orangeAccent,
-        size: 28,
-      );
-    if (percent > 0)
-      return const Icon(
-        Icons.sentiment_dissatisfied,
-        color: Color(0xFFFF3B30),
-        size: 28,
-      );
-    return const Icon(Icons.lock, color: Colors.grey, size: 28);
+  IconData getStatusIcon(double percent) {
+    if (percent >= 0.8) return Icons.emoji_events;
+    if (percent >= 0.5) return Icons.star_half;
+    if (percent > 0) return Icons.sentiment_dissatisfied;
+    return Icons.lock;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF121212),
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFFFF3B30)),
-        ),
-      );
-    }
-
-    if (results.isEmpty) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF121212),
-        body: Center(
-          child: Text(
-            "No results yet.",
-            style: TextStyle(fontSize: 16, color: Colors.white70),
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        elevation: 0,
+        elevation: 2,
         title: const Text(
           "Your Achievements ~",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: results.length,
-        itemBuilder: (context, index) {
-          final r = results[index];
-          final percent = r.totalMarks > 0 ? r.score / r.totalMarks : 0.0;
-          final borderColor = getBorderColor(r.score, r.totalMarks);
-          final icon = getPerformanceIcon(r.score, r.totalMarks);
-          final formattedDate = DateFormat(
-            'EEE, MMM d',
-          ).format(r.dateTaken.toLocal());
-
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 10),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+      body:
+          isLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: Colors.redAccent),
+              )
+              : results.isEmpty
+              ? const Center(
+                child: Text(
+                  "No results yet.",
+                  style: TextStyle(fontSize: 16, color: Colors.white70),
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Circular progress + test info
-                Row(
-                  children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 70,
-                          height: 70,
-                          child: CircularProgressIndicator(
-                            value: percent,
-                            strokeWidth: 7,
-                            backgroundColor: Colors.grey[800],
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              const Color(0xFFFF3B30),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          "${(percent * 100).toStringAsFixed(0)}%",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            r.title,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            r.score > 0
-                                ? "Score: ${r.score}/${r.totalMarks} • Time: ${r.timeTakenMinutes} min"
-                                : "Test not attempted",
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            formattedDate,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white38,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: borderColor.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: icon,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+              )
+              : ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                itemCount: results.length,
+                itemBuilder: (context, index) {
+                  final r = results[index];
+                  final percent =
+                      r.totalMarks > 0
+                          ? (r.score / r.totalMarks).clamp(0.0, 1.0)
+                          : 0.0;
+                  final percentText = ((percent * 100).clamp(
+                    0,
+                    100,
+                  )).toStringAsFixed(0);
+                  final color = getStatusColor(percent);
+                  final icon = getStatusIcon(percent);
+                  final formattedDate = DateFormat(
+                    'EEE, MMM d',
+                  ).format(r.dateTaken.toLocal());
 
-                // ✅ Single Button (Take/Retry Test or Perfect)
-                Center(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          percent >= 1.0 ? Colors.amber : Colors.redAccent,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () async {
-                      if (percent >= 1.0) {
-                        showDialog(
-                          context: context,
-                          builder:
-                              (_) => AlertDialog(
-                                backgroundColor: const Color(0xFF1E1E1E),
-                                title: const Text(
-                                  "🎉 Perfect Score!",
-                                  style: TextStyle(color: Colors.amber),
+                  return Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[900],
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.redAccent.withOpacity(0.5),
+                              blurRadius: 6,
+                              offset: const Offset(2, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header row
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    icon,
+                                    color: Colors.white,
+                                    size: 26,
+                                  ),
                                 ),
-                                content: Text(
-                                  "You scored ${r.score}/${r.totalMarks}. Amazing!",
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text(
-                                      "OK",
-                                      style: TextStyle(color: Colors.amber),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    r.title,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
                                     ),
                                   ),
-                                ],
-                              ),
-                        );
-                      } else {
-                        final updatedResult = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (_) => QuestionsScreen(
-                                  mockId: r.mockId,
-                                  mockName: r.title,
-                                  timeLimit: r.totalMarks,
-                                  negativeMarking: r.negativeMarking,
                                 ),
-                          ),
-                        );
+                                Text(
+                                  "$percentText%",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: color,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
 
-                        if (updatedResult != null &&
-                            updatedResult is ResultModel) {
-                          setState(() {
-                            final idx = results.indexWhere(
-                              (res) => res.mockId == updatedResult.mockId,
-                            );
-                            if (idx != -1) {
-                              results[idx] = updatedResult;
-                            } else {
-                              results.add(updatedResult);
-                            }
-                          });
-                        }
-                      }
-                    },
-                    child: Text(
-                      percent >= 1.0
-                          ? "Perfect Score!"
-                          : (r.score > 0 ? "Retake Test" : "Take Test"),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+                            // Score + Time info
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Score: ${r.score}/${r.totalMarks}",
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                                Text(
+                                  "Time: ${r.timeTakenMinutes} min",
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Progress bar
+                            Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: LinearProgressIndicator(
+                                    value: percent,
+                                    backgroundColor: Colors.grey[700],
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      color,
+                                    ),
+                                    minHeight: 18,
+                                  ),
+                                ),
+                                Positioned.fill(
+                                  child: Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      "$percentText%",
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            Text(
+                              formattedDate,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white38,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: (100 * index).ms)
+                      .slideY(begin: 0.2, end: 0, duration: 500.ms);
+                },
+              ),
     );
   }
 }
