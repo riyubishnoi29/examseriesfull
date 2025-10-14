@@ -101,11 +101,10 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
     double totalMarks = 0;
 
     for (var q in questions) {
-      // Ensure marks & negative marks are valid numbers
-      double marks = double.tryParse(q['marks']?.toString() ?? "") ?? 1;
+      // Safe parsing to prevent NaN errors
+      double marks = double.tryParse(q['marks']?.toString() ?? "1") ?? 1;
       double negativeMarks =
-          double.tryParse(q['negative_marks']?.toString() ?? "") ?? 0;
-
+          double.tryParse(q['negative_marks']?.toString() ?? "0") ?? 0;
       totalMarks += marks;
 
       final correctAnswer = q['correct_answer']?.toString() ?? "";
@@ -118,18 +117,11 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
       }
     }
 
-    // Ensure no NaN is sent
-    if (!score.isFinite) score = 0;
-    if (!totalMarks.isFinite) totalMarks = 0;
-
     int timeTakenSeconds = widget.timeLimit * 60 - remainingSeconds;
     int timeTakenMinutes = (timeTakenSeconds / 60).ceil();
 
     // ✅ Save result safely
     try {
-      print(
-        "Sending result: score=$score, total=$totalMarks, time=$timeTakenMinutes",
-      );
       await ApiService.saveResult(
         widget.mockId,
         score,

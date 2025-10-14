@@ -43,9 +43,9 @@ class _ResultScreenState extends State<ResultScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // Ensure score & total are safe numbers
-      double safeScore = widget.score.isFinite ? widget.score : 0;
-      double safeTotal = widget.total.isFinite ? widget.total : 0;
+      // Ensure score & total are not NaN or null
+      double safeScore = widget.score.isNaN ? 0 : widget.score;
+      double safeTotal = widget.total.isNaN ? 0 : widget.total;
 
       bool success = await ApiService.saveResult(
         widget.mockId,
@@ -58,7 +58,10 @@ class _ResultScreenState extends State<ResultScreen> {
             .toList(),
       );
 
-      if (success && mounted) setState(() => _isSaved = true);
+      if (success) {
+        if (!mounted) return;
+        setState(() => _isSaved = true);
+      }
     } catch (e) {
       debugPrint("❌ Error saving result: $e");
     } finally {
