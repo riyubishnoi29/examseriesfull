@@ -119,7 +119,7 @@ app.post('/results', async (req, res) => {
 
     // 1. Get mock test details (to fetch negative_marking)
     const [mockTestRows] = await pool.query(
-      'SELECT negative_marking FROM mock_tests WHERE id = ?',
+      'SELECT negative_marking , total_marks FROM mock_tests WHERE id = ?',
       [mock_id]
     );
     if (!mockTestRows.length) {
