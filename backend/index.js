@@ -110,13 +110,11 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// Save result (insert with negative marking calculation)
+// Save result 
 app.post('/results', async (req, res) => {
   try {
-    const { user_id, mock_id, answers, time_taken_minutes, total_marks } = req.body;
-    console.log("📥 Received result data:", req.body);
-
-    // 1️⃣ Get mock test details (to fetch negative_marking and total_marks)
+    const { user_id, mock_id, answers, time_taken_minutes } = req.body;
+    
     const [mockTestRows] = await pool.query(
       'SELECT negative_marking, total_marks FROM mock_tests WHERE id = ?',
       [mock_id]
@@ -126,8 +124,8 @@ app.post('/results', async (req, res) => {
       return res.status(404).json({ error: "Mock test not found" });
     }
 
-    const negativeMarking = parseFloat(mockTestRows[0].negative_marking || 0);
-    const totalMarks = parseFloat(total_marks || mockTestRows[0].total_marks || 0);
+    let negativeMarking = parseFloat(mockTestRows[0].negative_marking) || 0;
+    let totalMarks = parseFloat(mockTestRows[0].total_marks) || 0;
 
     // 2️⃣ Get all questions for this mock test
     const [questions] = await pool.query(
@@ -143,34 +141,35 @@ app.post('/results', async (req, res) => {
 
     for (let q of questions) {
       const userAns = answers.find(a => a.question_id === q.id);
-
       if (!userAns || !userAns.selected_option) {
         unattemptedCount++;
         continue;
       }
 
       if (userAns.selected_option === q.correct_answer) {
-        score += parseFloat(q.marks); // full marks
+        score += parseFloat(q.marks) || 0; // full marks
         correctCount++;
       } else {
-        score -= negativeMarking; // negative marking
+        score -= negativeMarking; // deduct negative marking
         wrongCount++;
       }
     }
 
-    if (score < 0) score = 0.0;
-    score = parseFloat(score.toFixed(2));
+    // Prevent negative or invalid score
+    if (isNaN(score) || score < 0) score = 0.0;
+    if (isNaN(totalMarks) || totalMarks < 0) totalMarks = 0.0;
 
-    // 4️⃣ Save result in DB
+    score = parseFloat(score.toFixed(2));
+    totalMarks = parseFloat(totalMarks.toFixed(2));
+
     console.log("📝 Saving result:", { user_id, mock_id, score, totalMarks, time_taken_minutes });
 
+    // 4️⃣ Save result in DB
     const [result] = await pool.query(
       `INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes)
        VALUES (?, ?, ?, ?, ?)`,
       [user_id, mock_id, score, totalMarks, time_taken_minutes]
     );
-
-    console.log("✅ Result inserted with ID:", result.insertId);
 
     res.json({
       message: '✅ Result saved successfully with negative marking',
