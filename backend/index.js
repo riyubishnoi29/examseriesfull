@@ -111,71 +111,61 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
   }
 });
 
+// Save result 
 app.post('/results', async (req, res) => {
   try {
-    let { user_id, mock_id, answers, time_taken_minutes } = req.body;
+    const { user_id, mock_id, answers, time_taken_minutes } = req.body;
+    // answers = array of { question_id, selected_option }
 
-    // Ensure numeric values
-    user_id = Number(user_id) || null;
-    mock_id = Number(mock_id) || 0;
-    time_taken_minutes = Number(time_taken_minutes) || 0;
-
-    // 1️⃣ Get mock test details (negative marking & total_marks)
-    const [mockRows] = await pool.query(
-      'SELECT negative_marking, total_marks FROM mock_tests WHERE id = ?',
+    // 1. Get mock test details (to fetch negative_marking)
+    const [mockTestRows] = await pool.query(
+      'SELECT negative_marking FROM mock_tests WHERE id = ?',
       [mock_id]
     );
-
-    if (!mockRows.length) {
+    if (!mockTestRows.length) {
       return res.status(404).json({ error: "Mock test not found" });
     }
+    const negativeMarking = mockTestRows[0].negative_marking || 0;
 
-    let negativeMarking = parseFloat(mockRows[0].negative_marking) || 0;
-    let totalMarksDB = parseFloat(mockRows[0].total_marks) || 0;
-
-    // 2️⃣ Get all questions
+    // 2. Get all questions for this mock test
     const [questions] = await pool.query(
       'SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?',
       [mock_id]
     );
 
-    // 3️⃣ Calculate score safely
-    let score = 0;
+    // 3. Calculate score
+    let score = 0.0;
     let correctCount = 0;
     let wrongCount = 0;
     let unattemptedCount = 0;
 
     for (let q of questions) {
-      let marks = parseFloat(q.marks);
-      if (isNaN(marks)) marks = 1; // default marks if invalid
-
       const userAns = answers.find(a => a.question_id === q.id);
-
       if (!userAns || !userAns.selected_option) {
         unattemptedCount++;
         continue;
       }
 
       if (userAns.selected_option === q.correct_answer) {
-        score += marks;
+        score += parseFloat(q.marks);   // full marks
         correctCount++;
       } else {
-        score -= negativeMarking;
+        score -= parseFloat(negativeMarking);  // deduct negative
         wrongCount++;
       }
     }
 
-    if (score < 0) score = 0; // prevent negative score
-    score = parseFloat(score.toFixed(2));
+    if (score < 0) score = 0.0; // prevent negative total score
 
-    // 4️⃣ Save result in DB safely
+    score = parseFloat(score.toFixed(2));
+    // 4. Save result in DB
     const [result] = await pool.query(
       'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
-      [user_id, mock_id, score, totalMarksDB, time_taken_minutes]
+      [user_id, mock_id, score, parseFloat(mockTestRows[0].total_marks),  time_taken_minutes]
     );
 
     res.json({
-      message: "Result saved successfully",
+      message: 'Result saved with negative marking',
       id: result.insertId,
       score,
       correctCount,
@@ -189,7 +179,6 @@ app.post('/results', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 
 // Add new question (editor + admin allowed)
