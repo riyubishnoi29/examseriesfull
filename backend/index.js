@@ -109,18 +109,23 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-// result submission
-app.post('/results', async (req, res) => {
+});app.post('/results', async (req, res) => {
   try {
     let { user_id, mock_id, answers, time_taken_minutes } = req.body;
+
+    // ✅ Convert safely
     user_id = Number(user_id) || null;
     mock_id = Number(mock_id) || 0;
     time_taken_minutes = Number(time_taken_minutes) || 0;
 
+    // 🧩 Validate basic inputs
+    if (!mock_id) {
+      return res.status(400).json({ error: "Missing mock_id" });
+    }
+
     // 1️⃣ Fetch both negative_marking AND total_marks
     const [mockTestRows] = await pool.query(
-      'SELECT negative_marking, total_marks FROM mock_tests WHERE id = ?',
+      "SELECT negative_marking, total_marks FROM mock_tests WHERE id = ?",
       [mock_id]
     );
 
@@ -133,25 +138,31 @@ app.post('/results', async (req, res) => {
 
     // 2️⃣ Get all questions for this mock test
     const [questions] = await pool.query(
-      'SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?',
+      "SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?",
       [mock_id]
     );
 
+    if (!questions.length) {
+      return res.status(404).json({ error: "No questions found for this mock test" });
+    }
+
     // 3️⃣ Calculate score
-    let score = 0.0;
+    let score = 0;
     let correctCount = 0;
     let wrongCount = 0;
     let unattemptedCount = 0;
 
-    for (let q of questions) {
-      const userAns = answers.find(a => a.question_id === q.id);
+    for (const q of questions) {
+      const userAns = answers?.find((a) => a.question_id === q.id);
       if (!userAns || !userAns.selected_option) {
         unattemptedCount++;
         continue;
       }
 
+      const marks = Number(q.marks) || 0;
+
       if (userAns.selected_option === q.correct_answer) {
-        score += Number(q.marks) || 0;
+        score += marks;
         correctCount++;
       } else {
         score -= negativeMarking;
@@ -159,23 +170,31 @@ app.post('/results', async (req, res) => {
       }
     }
 
-    if (score < 0) score = 0.0;
+    if (isNaN(score)) score = 0;
+    if (score < 0) score = 0;
     score = Number(score.toFixed(2));
 
-    // 4️⃣ Insert safe numeric values (avoid NaN)
+    // 4️⃣ Double-check all numeric values
+    const safeScore = isNaN(score) ? 0 : score;
+    const safeTotalMarks = isNaN(totalMarks) ? 0 : totalMarks;
+    const safeTime = isNaN(time_taken_minutes) ? 0 : time_taken_minutes;
+
+    // 5️⃣ Save result in DB
     await pool.query(
       `INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes)
        VALUES (?, ?, ?, ?, ?)`,
-      [user_id, mock_id, score, totalMarks, time_taken_minutes]
+      [user_id, mock_id, safeScore, safeTotalMarks, safeTime]
     );
 
+    // ✅ Send success response
     res.json({
+      success: true,
       message: "✅ Result saved successfully",
-      score,
+      score: safeScore,
       correctCount,
       wrongCount,
       unattemptedCount,
-      totalMarks,
+      totalMarks: safeTotalMarks,
       negativeMarking,
     });
   } catch (err) {
