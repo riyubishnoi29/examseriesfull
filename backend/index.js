@@ -110,30 +110,27 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-// Save result 
 app.post('/results', async (req, res) => {
   try {
     const { user_id, mock_id, answers, time_taken_minutes } = req.body;
-    // answers = array of { question_id, selected_option }
 
-    // 1. Get mock test details (to fetch negative_marking)
+    // 1️⃣ Get mock test details
     const [mockTestRows] = await pool.query(
-      'SELECT negative_marking FROM mock_tests WHERE id = ?',
+      'SELECT negative_marking, total_marks FROM mock_tests WHERE id = ?',
       [mock_id]
     );
     if (!mockTestRows.length) {
       return res.status(404).json({ error: "Mock test not found" });
     }
-    const negativeMarking = mockTestRows[0].negative_marking || 0;
+    const negativeMarking = parseFloat(mockTestRows[0].negative_marking) || 0;
 
-    // 2. Get all questions for this mock test
+    // 2️⃣ Get all questions
     const [questions] = await pool.query(
       'SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?',
       [mock_id]
     );
 
-    // 3. Calculate score
+    // 3️⃣ Calculate score
     let score = 0.0;
     let correctCount = 0;
     let wrongCount = 0;
@@ -146,22 +143,35 @@ app.post('/results', async (req, res) => {
         continue;
       }
 
+      let qMarks = parseFloat(q.marks);
+      if (isNaN(qMarks)) qMarks = 1;
+
       if (userAns.selected_option === q.correct_answer) {
-        score += parseFloat(q.marks);   // full marks
+        score += qMarks;
         correctCount++;
       } else {
-        score -= parseFloat(negativeMarking);  // deduct negative
+        score -= negativeMarking;
         wrongCount++;
       }
     }
 
-    if (score < 0) score = 0.0; // prevent negative total score
-
+    if (score < 0) score = 0.0;
     score = parseFloat(score.toFixed(2));
-    // 4. Save result in DB
+
+    // Safe total_marks
+    let totalMarks = parseFloat(mockTestRows[0].total_marks);
+    if (isNaN(totalMarks)) {
+      totalMarks = questions.reduce((sum, q) => {
+        let m = parseFloat(q.marks);
+        return sum + (isNaN(m) ? 1 : m);
+      }, 0);
+    }
+
+    // 4️⃣ Save result
+    const safeUserId = user_id || null;
     const [result] = await pool.query(
       'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
-      [user_id, mock_id, score, parseFloat(mockTestRows[0].total_marks),  time_taken_minutes]
+      [safeUserId, mock_id, score, totalMarks, time_taken_minutes]
     );
 
     res.json({
