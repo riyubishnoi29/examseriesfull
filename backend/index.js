@@ -110,11 +110,17 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Save result 
 app.post('/results', async (req, res) => {
   try {
-    const { user_id, mock_id, answers, time_taken_minutes } = req.body;
+    let { user_id, mock_id, answers, time_taken_minutes } = req.body;
 
-    // 1️⃣ Get mock test details
+    user_id = Number(user_id) || null;
+    mock_id = Number(mock_id);
+    time_taken_minutes = Number(time_taken_minutes) || 0;
+
+    // 1️⃣ Get mock test details (negative_marking and total_marks)
     const [mockTestRows] = await pool.query(
       'SELECT negative_marking, total_marks FROM mock_tests WHERE id = ?',
       [mock_id]
@@ -123,28 +129,28 @@ app.post('/results', async (req, res) => {
       return res.status(404).json({ error: "Mock test not found" });
     }
     const negativeMarking = parseFloat(mockTestRows[0].negative_marking) || 0;
+    const totalMarks = parseFloat(mockTestRows[0].total_marks) || 0;
 
-    // 2️⃣ Get all questions
+    // 2️⃣ Get questions
     const [questions] = await pool.query(
       'SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?',
       [mock_id]
     );
 
     // 3️⃣ Calculate score
-    let score = 0.0;
+    let score = 0;
     let correctCount = 0;
     let wrongCount = 0;
     let unattemptedCount = 0;
 
     for (let q of questions) {
       const userAns = answers.find(a => a.question_id === q.id);
+      const qMarks = parseFloat(q.marks) || 1;
+
       if (!userAns || !userAns.selected_option) {
         unattemptedCount++;
         continue;
       }
-
-      let qMarks = parseFloat(q.marks);
-      if (isNaN(qMarks)) qMarks = 1;
 
       if (userAns.selected_option === q.correct_answer) {
         score += qMarks;
@@ -155,27 +161,17 @@ app.post('/results', async (req, res) => {
       }
     }
 
-    if (score < 0) score = 0.0;
+    if (score < 0) score = 0;
     score = parseFloat(score.toFixed(2));
 
-    // Safe total_marks
-    let totalMarks = parseFloat(mockTestRows[0].total_marks);
-    if (isNaN(totalMarks)) {
-      totalMarks = questions.reduce((sum, q) => {
-        let m = parseFloat(q.marks);
-        return sum + (isNaN(m) ? 1 : m);
-      }, 0);
-    }
-
     // 4️⃣ Save result
-    const safeUserId = user_id || null;
     const [result] = await pool.query(
       'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
-      [safeUserId, mock_id, score, totalMarks, time_taken_minutes]
+      [user_id, mock_id, score, totalMarks, time_taken_minutes]
     );
 
     res.json({
-      message: 'Result saved with negative marking',
+      message: 'Result saved successfully',
       id: result.insertId,
       score,
       correctCount,
@@ -183,12 +179,12 @@ app.post('/results', async (req, res) => {
       unattemptedCount,
       negativeMarking
     });
-
   } catch (err) {
     console.error("RESULT SAVE ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // Add new question (editor + admin allowed)
