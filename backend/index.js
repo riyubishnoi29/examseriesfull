@@ -109,96 +109,73 @@ app.get('/mock_tests/:mockId/questions', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});app.post('/results', async (req, res) => {
+});
+
+// Save result (insert with negative marking calculation)
+app.post('/results', async (req, res) => {
   try {
-    let { user_id, mock_id, answers, time_taken_minutes } = req.body;
+    const { user_id, mock_id, answers, time_taken_minutes } = req.body;
+    // answers = array of { question_id, selected_option }
 
-    // ✅ Convert safely
-    user_id = Number(user_id) || null;
-    mock_id = Number(mock_id) || 0;
-    time_taken_minutes = Number(time_taken_minutes) || 0;
-
-    // 🧩 Validate basic inputs
-    if (!mock_id) {
-      return res.status(400).json({ error: "Missing mock_id" });
-    }
-
-    // 1️⃣ Fetch both negative_marking AND total_marks
+    // 1. Get mock test details (to fetch negative_marking)
     const [mockTestRows] = await pool.query(
-      "SELECT negative_marking, total_marks FROM mock_tests WHERE id = ?",
+      'SELECT negative_marking FROM mock_tests WHERE id = ?',
       [mock_id]
     );
-
     if (!mockTestRows.length) {
       return res.status(404).json({ error: "Mock test not found" });
     }
+    const negativeMarking = mockTestRows[0].negative_marking || 0;
 
-    const negativeMarking = Number(mockTestRows[0].negative_marking) || 0;
-    const totalMarks = Number(mockTestRows[0].total_marks) || 0;
-
-    // 2️⃣ Get all questions for this mock test
+    // 2. Get all questions for this mock test
     const [questions] = await pool.query(
-      "SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?",
+      'SELECT id, correct_answer, marks FROM questions WHERE mock_id = ?',
       [mock_id]
     );
 
-    if (!questions.length) {
-      return res.status(404).json({ error: "No questions found for this mock test" });
-    }
-
-    // 3️⃣ Calculate score
-    let score = 0;
+    // 3. Calculate score
+    let score = 0.0;
     let correctCount = 0;
     let wrongCount = 0;
     let unattemptedCount = 0;
 
-    for (const q of questions) {
-      const userAns = answers?.find((a) => a.question_id === q.id);
+    for (let q of questions) {
+      const userAns = answers.find(a => a.question_id === q.id);
       if (!userAns || !userAns.selected_option) {
         unattemptedCount++;
         continue;
       }
 
-      const marks = Number(q.marks) || 0;
-
       if (userAns.selected_option === q.correct_answer) {
-        score += marks;
+        score += parseFloat(q.marks);   // full marks
         correctCount++;
       } else {
-        score -= negativeMarking;
+        score -= parseFloat(negativeMarking);  // deduct negative
         wrongCount++;
       }
     }
 
-    if (isNaN(score)) score = 0;
-    if (score < 0) score = 0;
-    score = Number(score.toFixed(2));
+    if (score < 0) score = 0.0; // prevent negative total score
 
-    // 4️⃣ Double-check all numeric values
-    const safeScore = isNaN(score) ? 0 : score;
-    const safeTotalMarks = isNaN(totalMarks) ? 0 : totalMarks;
-    const safeTime = isNaN(time_taken_minutes) ? 0 : time_taken_minutes;
-
-    // 5️⃣ Save result in DB
-    await pool.query(
-      `INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes)
-       VALUES (?, ?, ?, ?, ?)`,
-      [user_id, mock_id, safeScore, safeTotalMarks, safeTime]
+    score = parseFloat(score.toFixed(2));
+    // 4. Save result in DB
+    const [result] = await pool.query(
+      'INSERT INTO results (user_id, mock_id, score, total_marks, time_taken_minutes) VALUES (?, ?, ?, ?, ?)',
+      [user_id, mock_id, score, parseFloat(mockTestRows[0].total_marks),  time_taken_minutes]
     );
 
-    // ✅ Send success response
     res.json({
-      success: true,
-      message: "✅ Result saved successfully",
-      score: safeScore,
+      message: 'Result saved with negative marking',
+      id: result.insertId,
+      score,
       correctCount,
       wrongCount,
       unattemptedCount,
-      totalMarks: safeTotalMarks,
-      negativeMarking,
+      negativeMarking
     });
+
   } catch (err) {
-    console.error("❌ RESULT SAVE ERROR:", err);
+    console.error("RESULT SAVE ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
