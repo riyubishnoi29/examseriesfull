@@ -111,44 +111,57 @@ class ApiService {
     String title,
     List<Map<String, dynamic>> answers,
   ) async {
-    final token = await storage.read(key: "token");
-    if (token == null) {
-      print("❌ Token is null, user not logged in");
+    try {
+      final token = await storage.read(key: "token");
+      if (token == null) {
+        print("❌ Token is null, user not logged in");
+        return false;
+      }
+
+      // Decode token to get user id
+      final payload = jsonDecode(
+        ascii.decode(base64.decode(base64.normalize(token.split(".")[1]))),
+      );
+      final userId = payload['id'];
+
+      print("🔹 User ID from token: $userId");
+      print("🔹 Score: $score, Total Marks: $totalMarks");
+      print("🔹 Mock ID: $mockId");
+      print("🔹 Time Taken: $timeTakenMinutes minutes");
+      print("🔹 Answers: $answers");
+
+      final Map<String, dynamic> resultData = {
+        "user_id": userId,
+        "mock_id": mockId,
+        "score": score,
+        "total_marks": totalMarks,
+        "time_taken_minutes": timeTakenMinutes,
+        "title": title,
+        "answers": answers,
+      };
+
+      print("🔹 Sending payload to API: ${json.encode(resultData)}");
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/results'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(resultData),
+      );
+
+      print("🔹 API Status Code: ${response.statusCode}");
+      print("🔹 API Response Body: ${response.body}");
+
+      if (response.statusCode != 200) {
+        print("❌ Failed to save result, check backend API!");
+        return false;
+      }
+
+      return true;
+    } catch (e, stack) {
+      print("❌ Exception while saving result: $e");
+      print(stack);
       return false;
     }
-
-    // Decode token to get user id
-    final payload = jsonDecode(
-      ascii.decode(base64.decode(base64.normalize(token.split(".")[1]))),
-    );
-    final userId = payload['id'];
-
-    print("🔹 User ID from token: $userId");
-    print("🔹 Score: $score, Total Marks: $totalMarks");
-    print("🔹 Mock ID: $mockId");
-    print("🔹 Time Taken: $timeTakenMinutes minutes");
-    print("🔹 Answers: $answers");
-
-    final Map<String, dynamic> resultData = {
-      "user_id": userId,
-      "mock_id": mockId,
-      "score": score,
-      "total_marks": totalMarks,
-      "time_taken_minutes": timeTakenMinutes,
-      "title": title,
-      "answers": answers,
-    };
-
-    final response = await http.post(
-      Uri.parse('$baseUrl/results'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(resultData),
-    );
-
-    print("🔹 API Status Code: ${response.statusCode}");
-    print("🔹 API Response Body: ${response.body}");
-
-    return response.statusCode == 200;
   }
 
   // Get user results

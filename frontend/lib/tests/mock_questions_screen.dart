@@ -97,18 +97,23 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   void showResult() async {
     timer?.cancel();
 
+    // Helper to safely parse numbers
+    double safeParse(dynamic value, {double fallback = 0}) {
+      if (value == null) return fallback;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value.toString()) ?? fallback;
+    }
+
     double score = 0;
     double totalMarks = 0;
 
     for (var q in questions) {
-      // Safe parsing to prevent NaN errors
-      double marks = double.tryParse(q['marks']?.toString() ?? "1") ?? 1;
-      double negativeMarks =
-          double.tryParse(q['negative_marks']?.toString() ?? "0") ?? 0;
+      double marks = safeParse(q['marks'], fallback: 1);
+      double negativeMarks = safeParse(q['negative_marks'], fallback: 0);
       totalMarks += marks;
 
       final correctAnswer = q['correct_answer']?.toString() ?? "";
-      final selectedAnswer = selectedAnswers[q['id']] ?? "";
+      final selectedAnswer = selectedAnswers[q['id']]?.toString() ?? "";
 
       if (selectedAnswer == correctAnswer) {
         score += marks;
@@ -117,10 +122,19 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
       }
     }
 
+    // Prevent NaN or negative scores
+    score = score.isNaN || score < 0 ? 0 : score;
+    totalMarks = totalMarks.isNaN ? 0 : totalMarks;
+
     int timeTakenSeconds = widget.timeLimit * 60 - remainingSeconds;
     int timeTakenMinutes = (timeTakenSeconds / 60).ceil();
 
-    // ✅ Save result safely
+    // Debug print to verify
+    print(
+      "Saving result: score=$score, total=$totalMarks, time=$timeTakenMinutes",
+    );
+
+    // Save result safely
     try {
       await ApiService.saveResult(
         widget.mockId,
@@ -137,6 +151,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
     }
 
     // Navigate to ResultScreen
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(

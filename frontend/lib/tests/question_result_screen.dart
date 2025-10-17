@@ -43,9 +43,27 @@ class _ResultScreenState extends State<ResultScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // Ensure score & total are not NaN or null
+      // Safe score & total with negative marking applied
       double safeScore = widget.score.isNaN ? 0 : widget.score;
       double safeTotal = widget.total.isNaN ? 0 : widget.total;
+      double negativeMarking =
+          widget.negativeMarking.isNaN ? 0 : widget.negativeMarking;
+
+      // Apply negative marking if score goes below zero
+      safeScore = safeScore < 0 ? 0 : safeScore;
+
+      // Prepare answers
+      final answersPayload =
+          widget.selectedAnswers.entries
+              .map(
+                (e) => {'question_id': e.key, 'selected_option': e.value ?? ""},
+              )
+              .toList();
+
+      // Debug print
+      debugPrint(
+        "Auto-saving: score=$safeScore, total=$safeTotal, negative=$negativeMarking",
+      );
 
       bool success = await ApiService.saveResult(
         widget.mockId,
@@ -53,13 +71,10 @@ class _ResultScreenState extends State<ResultScreen> {
         safeTotal,
         widget.timeTakenMinutes,
         widget.title,
-        widget.selectedAnswers.entries
-            .map((e) => {'question_id': e.key, 'selected_option': e.value})
-            .toList(),
+        answersPayload,
       );
 
-      if (success) {
-        if (!mounted) return;
+      if (success && mounted) {
         setState(() => _isSaved = true);
       }
     } catch (e) {
