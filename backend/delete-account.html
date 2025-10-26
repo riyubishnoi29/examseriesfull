@@ -41,6 +41,7 @@
       border: 1px solid #333;
       box-shadow: 0 6px 18px rgba(0,0,0,0.6);
       transition: transform 0.3s, border-color 0.3s;
+      overflow-wrap: break-word; /* fix long text overflow */
     }
 
     section:hover {
@@ -55,16 +56,35 @@
 
     ol, ul {
       margin-left: 20px;
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
     }
 
     a {
       color: #ff4b2b;
       text-decoration: none;
       font-weight: 600;
+      word-break: break-word; /* ensure long email wraps */
     }
 
     a:hover {
       text-decoration: underline;
+    }
+
+    /* Email box styling */
+    .email-list {
+      background: #222;
+      padding: 15px;
+      border-radius: 10px;
+      border: 1px solid #ff1e56;
+      margin-top: 10px;
+    }
+
+    .email-list li {
+      list-style: none;
     }
 
     footer {
@@ -97,14 +117,15 @@
     <p>To permanently delete your RankYard account and all associated data, please follow these instructions:</p>
     <ol>
       <li>Send an email from your registered account to one of the following addresses:</li>
-      <ul>
-        <li><a href="mailto:bishnoiriya495@gmail.com">bishnoiriya495@gmail.com</a></li>
-        <li><a href="mailto:itsmepawan.bishnoi@gmail.com">itsmepawan.bishnoi@gmail.com</a></li>
-      </ul>
+    </ol>
+    <ul class="email-list">
+      <li><a href="mailto:bishnoiriya495@gmail.com">bishnoiriya495@gmail.com</a></li>
+      <li><a href="mailto:itsmepawan.bishnoi@gmail.com">itsmepawan.bishnoi@gmail.com</a></li>
+    </ul>
+    <ol start="2">
       <li>Include your username and a clear request to delete your account.</li>
       <li>Our team will confirm your request within 48 hours and process the deletion.</li>
     </ol>
-   
   </section>
 
   <section>
@@ -124,7 +145,7 @@
   <section>
     <h2>Support</h2>
     <p>If you have any questions or face issues with account deletion, contact us at:</p>
-    <ul>
+    <ul class="email-list">
       <li><a href="mailto:bishnoiriya495@gmail.com">bishnoiriya495@gmail.com</a></li>
       <li><a href="mailto:itsmepawan.bishnoi@gmail.com">itsmepawan.bishnoi@gmail.com</a></li>
     </ul>
