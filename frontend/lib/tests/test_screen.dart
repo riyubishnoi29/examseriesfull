@@ -1,3 +1,4 @@
+import 'package:examtrack/core/app_drawer.dart';
 import 'package:examtrack/features/widgets/exam_tile.dart';
 import 'package:examtrack/tests/mock_test_screen.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +45,7 @@ class _TestScreenState extends State<TestScreen> {
         ),
         backgroundColor: Colors.black,
       ),
+      endDrawer: AppDrawer(),
       body:
           isLoading
               ? Center(child: CircularProgressIndicator())
