@@ -1,4 +1,4 @@
-package com.example.examtrack
+package com.rankyard.app
 
 import io.flutter.embedding.android.FlutterActivity
 

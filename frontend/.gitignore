@@ -47,3 +47,4 @@ app.*.map.json
 # 🔒 Don't upload signing key info
 android/key.properties
 
+
