@@ -104,29 +104,12 @@ app.get('/exams/:examId/mock_tests', async (req, res) => {
 app.get('/mock_tests/:mockId/questions', async (req, res) => {
   try {
     const mockId = req.params.mockId;
-
-    const [rows] = await pool.query(
-      `SELECT 
-         id, mock_id, question_text, question_image,
-         options, options_image,
-         correct_answer, marks 
-       FROM questions 
-       WHERE mock_id = ?`,
-      [mockId]
-    );
-
-    const updated = rows.map(q => ({
-      ...q,
-      options: JSON.parse(q.options || "[]"),
-      options_image: JSON.parse(q.options_image || "[]")
-    }));
-
-    res.json(updated);
+    const [rows] = await pool.query('SELECT * FROM questions WHERE mock_id = ?', [mockId]);
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // Save result 
 app.post('/results', async (req, res) => {
@@ -207,36 +190,18 @@ app.post('/results', async (req, res) => {
 // Add new question (editor + admin allowed)
 app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
   try {
-    const { 
-      mock_id, 
-      question_text, 
-      question_image, 
-      options, 
-      options_image, 
-      correct_answer, 
-      marks 
-    } = req.body;
+    const { mock_id, question_text, options, correct_answer, marks } = req.body;
 
-    if (!mock_id || (!question_text && !question_image) || !options || !correct_answer) {
-      return res.status(400).json({ error: "Required fields missing" });
+    if (!mock_id || !question_text || !options || !correct_answer) {
+      return res.status(400).json({ error: "All fields are required" });
     }
 
     const optionsJson = typeof options === "string" ? options : JSON.stringify(options);
-    const optionsImageJson = typeof options_image === "string" ? options_image : JSON.stringify(options_image);
 
     const [result] = await pool.query(
-      `INSERT INTO questions 
-       (mock_id, question_text, question_image, options, options_image, correct_answer, marks, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'draft')`,
-      [
-        mock_id,
-        question_text || null,
-        question_image || null,
-        optionsJson,
-        optionsImageJson,
-        correct_answer,
-        marks || 1
-      ]
+      `INSERT INTO questions (mock_id, question_text, options, correct_answer, marks, status)
+       VALUES (?, ?, ?, ?, ?, 'draft')`,
+      [mock_id, question_text, optionsJson, correct_answer, marks || 1]
     );
 
     res.json({ message: "✅ Question saved as draft", id: result.insertId });
@@ -245,7 +210,6 @@ app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 //  Get mock tests by status (default = draft)
 app.get('/mock_tests', roleAuth(['admin', 'publisher']), async (req, res) => {
@@ -455,6 +419,43 @@ app.get('/api/auth/profile', auth, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
+// IMAGE QUESTIONS API
+app.get("/api/image-questions/:mock_id", (req, res) => {
+    const mockId = req.params.mock_id;
+
+    const query = `SELECT * FROM image_questions WHERE mock_id = ?`;
+
+    db.query(query, [mockId], (err, results) => {
+        if (err) {
+            console.error("Error fetching image questions:", err);
+            return res.status(500).json({ error: "Database error" });
+        }
+
+        // Format response for Flutter
+        const formatted = results.map(q => ({
+            id: q.id,
+            mock_id: q.mock_id,
+
+            question_text: q.question_text,
+            question_image: q.question_image,
+
+            options: [
+                { text: q.option1_text, image: q.option1_image },
+                { text: q.option2_text, image: q.option2_image },
+                { text: q.option3_text, image: q.option3_image },
+                { text: q.option4_text, image: q.option4_image }
+            ],
+
+            correct_option: q.correct_option,
+            created_at: q.created_at
+        }));
+
+        res.json({ status: "success", data: formatted });
+    });
+});
+
+
 
 // Serve the frontend
 app.get('/', (req, res) => {
