@@ -104,12 +104,29 @@ app.get('/exams/:examId/mock_tests', async (req, res) => {
 app.get('/mock_tests/:mockId/questions', async (req, res) => {
   try {
     const mockId = req.params.mockId;
-    const [rows] = await pool.query('SELECT * FROM questions WHERE mock_id = ?', [mockId]);
-    res.json(rows);
+
+    const [rows] = await pool.query(
+      `SELECT 
+         id, mock_id, question_text, question_image,
+         options, options_image,
+         correct_answer, marks 
+       FROM questions 
+       WHERE mock_id = ?`,
+      [mockId]
+    );
+
+    const updated = rows.map(q => ({
+      ...q,
+      options: JSON.parse(q.options || "[]"),
+      options_image: JSON.parse(q.options_image || "[]")
+    }));
+
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Save result 
 app.post('/results', async (req, res) => {
@@ -190,18 +207,36 @@ app.post('/results', async (req, res) => {
 // Add new question (editor + admin allowed)
 app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
   try {
-    const { mock_id, question_text, options, correct_answer, marks } = req.body;
+    const { 
+      mock_id, 
+      question_text, 
+      question_image, 
+      options, 
+      options_image, 
+      correct_answer, 
+      marks 
+    } = req.body;
 
-    if (!mock_id || !question_text || !options || !correct_answer) {
-      return res.status(400).json({ error: "All fields are required" });
+    if (!mock_id || (!question_text && !question_image) || !options || !correct_answer) {
+      return res.status(400).json({ error: "Required fields missing" });
     }
 
     const optionsJson = typeof options === "string" ? options : JSON.stringify(options);
+    const optionsImageJson = typeof options_image === "string" ? options_image : JSON.stringify(options_image);
 
     const [result] = await pool.query(
-      `INSERT INTO questions (mock_id, question_text, options, correct_answer, marks, status)
-       VALUES (?, ?, ?, ?, ?, 'draft')`,
-      [mock_id, question_text, optionsJson, correct_answer, marks || 1]
+      `INSERT INTO questions 
+       (mock_id, question_text, question_image, options, options_image, correct_answer, marks, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'draft')`,
+      [
+        mock_id,
+        question_text || null,
+        question_image || null,
+        optionsJson,
+        optionsImageJson,
+        correct_answer,
+        marks || 1
+      ]
     );
 
     res.json({ message: "✅ Question saved as draft", id: result.insertId });
@@ -210,6 +245,7 @@ app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 //  Get mock tests by status (default = draft)
 app.get('/mock_tests', roleAuth(['admin', 'publisher']), async (req, res) => {
