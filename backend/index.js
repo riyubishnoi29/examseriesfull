@@ -185,26 +185,43 @@ app.post('/results', async (req, res) => {
   }
 });
 
-
-
 // Add new question (editor + admin allowed)
 app.post('/questions', roleAuth(['admin', 'editor']), async (req, res) => {
   try {
-    const { mock_id, question_text, options, correct_answer, marks } = req.body;
+    const { 
+      mock_id, 
+      question_text, 
+      question_image, 
+      options, 
+      options_image,
+      correct_answer, 
+      marks 
+    } = req.body;
 
-    if (!mock_id || !question_text || !options || !correct_answer) {
-      return res.status(400).json({ error: "All fields are required" });
+    if (!mock_id || (!question_text && !question_image) || !options || !correct_answer) {
+      return res.status(400).json({ error: "Required fields missing" });
     }
 
     const optionsJson = typeof options === "string" ? options : JSON.stringify(options);
+    const optionsImgJson = typeof options_image === "string" ? options_image : JSON.stringify(options_image);
 
     const [result] = await pool.query(
-      `INSERT INTO questions (mock_id, question_text, options, correct_answer, marks, status)
-       VALUES (?, ?, ?, ?, ?, 'draft')`,
-      [mock_id, question_text, optionsJson, correct_answer, marks || 1]
+      `INSERT INTO questions 
+      (mock_id, question_text, question_image, options, options_image, correct_answer, marks, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'draft')`,
+      [
+        mock_id, 
+        question_text || null, 
+        question_image || null,
+        optionsJson, 
+        optionsImgJson || null,
+        correct_answer, 
+        marks || 1
+      ]
     );
 
-    res.json({ message: "✅ Question saved as draft", id: result.insertId });
+    res.json({ message: "✅ Question saved", id: result.insertId });
+
   } catch (err) {
     console.error("QUESTION INSERT ERROR:", err);
     res.status(500).json({ error: err.message });
@@ -419,45 +436,6 @@ app.get('/api/auth/profile', auth, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
-// IMAGE QUESTIONS API (using pool.query)
-app.get("/api/image-questions/:mock_id", async (req, res) => {
-  try {
-    const mockId = req.params.mock_id;
-
-    const [results] = await pool.query(
-      `SELECT * FROM image_questions WHERE mock_id = ?`,
-      [mockId]
-    );
-
-    const formatted = results.map(q => ({
-      id: q.id,
-      mock_id: q.mock_id,
-
-      question_text: q.question_text,
-      question_image: q.question_image,
-
-      options: [
-        { text: q.option1_text, image: q.option1_image },
-        { text: q.option2_text, image: q.option2_image },
-        { text: q.option3_text, image: q.option3_image },
-        { text: q.option4_text, image: q.option4_image }
-      ],
-
-      correct_option: q.correct_option,
-      created_at: q.created_at
-    }));
-
-    res.json({ status: "success", data: formatted });
-
-  } catch (err) {
-    console.error("Error fetching image questions:", err);
-    res.status(500).json({ error: "Database error" });
-  }
-});
-
-
-
 // Serve the frontend
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
