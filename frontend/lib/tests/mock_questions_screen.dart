@@ -406,7 +406,17 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 
   Widget buildQuestionLayout() {
     final q = questions[currentIndex];
-    final options = List<String>.from(q['options'] ?? []);
+
+    // Text options (if any)
+    final List optionsText = q['options'] is List ? q['options'] : [];
+
+    // Image options (if any)
+    final List optionsImages =
+        q['options_image'] is List ? q['options_image'] : [];
+
+    // Decide which options to show: prefer text if available
+    final List optionsToShow =
+        optionsText.isNotEmpty ? optionsText : optionsImages;
 
     return Column(
       children: [
@@ -416,6 +426,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
           valueColor: AlwaysStoppedAnimation(primaryRed),
           minHeight: 6,
         ),
+
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -423,6 +434,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Question number & marks
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -457,18 +469,48 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    q['question_text'] ?? "",
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+
+                  // Question text
+                  if (q['question_text'] != null &&
+                      q['question_text'].toString().isNotEmpty)
+                    Text(
+                      q['question_text'],
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  ...options.map((opt) {
+
+                  const SizedBox(height: 16),
+
+                  // Question image
+                  if (q['question_image'] != null &&
+                      q['question_image'].toString().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Image.network(
+                        q['question_image'],
+                        height: 200,
+                        fit: BoxFit.contain,
+                        errorBuilder:
+                            (c, e, s) => const Text(
+                              "Image load error",
+                              style: TextStyle(color: Colors.red),
+                            ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // Options (text or images)
+                  ...optionsToShow.map((opt) {
                     final questionId = q['id'];
                     final isSelected = selectedAnswers[questionId] == opt;
+                    final bool isImageOption = opt.toString().startsWith(
+                      "http",
+                    );
+
                     return Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
@@ -483,19 +525,33 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                                 : optionColor,
                       ),
                       child: RadioListTile<String>(
-                        value: opt,
+                        value: opt.toString(),
                         groupValue: selectedAnswers[questionId],
                         onChanged: (val) {
                           if (val != null) selectAnswer(val);
                         },
-                        title: Text(
-                          opt,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color:
-                                isSelected ? Colors.redAccent : Colors.white70,
-                          ),
-                        ),
+                        title:
+                            isImageOption
+                                ? Image.network(
+                                  opt,
+                                  height: 80,
+                                  fit: BoxFit.contain,
+                                  errorBuilder:
+                                      (c, e, s) => const Text(
+                                        "Error loading option image",
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                )
+                                : Text(
+                                  opt,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color:
+                                        isSelected
+                                            ? Colors.redAccent
+                                            : Colors.white70,
+                                  ),
+                                ),
                         activeColor: primaryRed,
                       ),
                     );
@@ -505,6 +561,8 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
             ),
           ),
         ),
+
+        // Bottom buttons (same as your original code)
         SafeArea(
           top: false,
           child: Padding(

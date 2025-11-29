@@ -43,16 +43,12 @@ class _ResultScreenState extends State<ResultScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // Safe score & total with negative marking applied
       double safeScore = widget.score.isNaN ? 0 : widget.score;
       double safeTotal = widget.total.isNaN ? 0 : widget.total;
       double negativeMarking =
           widget.negativeMarking.isNaN ? 0 : widget.negativeMarking;
-
-      // Apply negative marking if score goes below zero
       safeScore = safeScore < 0 ? 0 : safeScore;
 
-      // Prepare answers
       final answersPayload =
           widget.selectedAnswers.entries
               .map(
@@ -60,7 +56,6 @@ class _ResultScreenState extends State<ResultScreen> {
               )
               .toList();
 
-      // Debug print
       debugPrint(
         "Auto-saving: score=$safeScore, total=$safeTotal, negative=$negativeMarking",
       );
@@ -157,7 +152,6 @@ class _ResultScreenState extends State<ResultScreen> {
             ),
             child: Column(
               children: [
-                // Circular progress
                 Stack(
                   alignment: Alignment.center,
                   children: [
@@ -228,9 +222,15 @@ class _ResultScreenState extends State<ResultScreen> {
             final q = widget.questions[i];
             final correctAnswer = q['correct_answer']?.toString() ?? "";
             final selected = widget.selectedAnswers[q['id']] ?? "";
-
             bool isCorrect = selected == correctAnswer;
             bool isSkipped = selected.isEmpty;
+
+            // Determine options (text or image)
+            final List options =
+                (q['options_image'] != null &&
+                        (q['options_image'] as List).isNotEmpty)
+                    ? List<String>.from(q['options_image'])
+                    : List<String>.from(q['options']);
 
             return Card(
               color: Colors.grey.shade900,
@@ -243,16 +243,17 @@ class _ResultScreenState extends State<ResultScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Q${i + 1}. ${q['question_text']}",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                    if (q['question_text'] != null)
+                      Text(
+                        "Q${i + 1}. ${q['question_text']}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 10),
-                    ...List<String>.from(q['options']).map((opt) {
+                    ...options.map((opt) {
                       bool isSelected = selected == opt;
                       bool isAnswer = opt == correctAnswer;
 
@@ -287,17 +288,33 @@ class _ResultScreenState extends State<ResultScreen> {
                         child: Row(
                           children: [
                             Expanded(
-                              child: Text(
-                                opt,
-                                style: const TextStyle(color: Colors.white),
-                              ),
+                              child:
+                                  opt.startsWith("http")
+                                      ? Image.network(
+                                        opt,
+                                        height: 60,
+                                        fit: BoxFit.contain,
+                                        errorBuilder:
+                                            (c, e, s) => const Text(
+                                              "Image load error",
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                      )
+                                      : Text(
+                                        opt,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
                             ),
                             if (icon != null)
                               Icon(icon, color: iconColor, size: 20),
                           ],
                         ),
                       );
-                    }),
+                    }).toList(),
                     if (isSkipped)
                       const Padding(
                         padding: EdgeInsets.only(top: 6),
