@@ -420,39 +420,40 @@ app.get('/api/auth/profile', auth, async (req, res) => {
   }
 });
 
-// IMAGE QUESTIONS API
-app.get("/api/image-questions/:mock_id", (req, res) => {
+// IMAGE QUESTIONS API (using pool.query)
+app.get("/api/image-questions/:mock_id", async (req, res) => {
+  try {
     const mockId = req.params.mock_id;
 
-    const query = `SELECT * FROM image_questions WHERE mock_id = ?`;
+    const [results] = await pool.query(
+      `SELECT * FROM image_questions WHERE mock_id = ?`,
+      [mockId]
+    );
 
-    db.query(query, [mockId], (err, results) => {
-        if (err) {
-            console.error("Error fetching image questions:", err);
-            return res.status(500).json({ error: "Database error" });
-        }
+    const formatted = results.map(q => ({
+      id: q.id,
+      mock_id: q.mock_id,
 
-        // Format response for Flutter
-        const formatted = results.map(q => ({
-            id: q.id,
-            mock_id: q.mock_id,
+      question_text: q.question_text,
+      question_image: q.question_image,
 
-            question_text: q.question_text,
-            question_image: q.question_image,
+      options: [
+        { text: q.option1_text, image: q.option1_image },
+        { text: q.option2_text, image: q.option2_image },
+        { text: q.option3_text, image: q.option3_image },
+        { text: q.option4_text, image: q.option4_image }
+      ],
 
-            options: [
-                { text: q.option1_text, image: q.option1_image },
-                { text: q.option2_text, image: q.option2_image },
-                { text: q.option3_text, image: q.option3_image },
-                { text: q.option4_text, image: q.option4_image }
-            ],
+      correct_option: q.correct_option,
+      created_at: q.created_at
+    }));
 
-            correct_option: q.correct_option,
-            created_at: q.created_at
-        }));
+    res.json({ status: "success", data: formatted });
 
-        res.json({ status: "success", data: formatted });
-    });
+  } catch (err) {
+    console.error("Error fetching image questions:", err);
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
 
