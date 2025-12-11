@@ -33,20 +33,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.person_outline,
-                  color: Colors.white70,
-                  size: 80,
-                ),
-                const SizedBox(height: 20),
+                const Icon(Icons.person_outline, color: Colors.white, size: 80),
+                const SizedBox(height: 30),
                 const Text(
                   "Please login to view your profile",
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, color: Colors.white70),
+                  style: TextStyle(fontSize: 18, color: Colors.white),
                 ),
                 const SizedBox(height: 30),
 
-                // 🌈 Stylish Modern Login Button
                 SizedBox(
                   width: double.infinity,
                   child: Container(
