@@ -436,6 +436,23 @@ app.get('/api/auth/profile', auth, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+// Closed Testing latest version
+const LATEST_VERSION = "1.0.0"; 
+const UPDATE_TYPE = "force";    
+const UPDATE_URL = "https://play.google.com/store/apps/details?id=com.rankyard.app";
+
+app.get('/check_update', (req, res) => {
+  
+    const currentVersion = req.query.current_version || "1.0.0"; 
+
+    const needsUpdate = currentVersion !== LATEST_VERSION;
+
+    res.json({
+        latest_version: LATEST_VERSION,
+        update_type: needsUpdate ? UPDATE_TYPE : "none", 
+        update_url: needsUpdate ? UPDATE_URL : ""
+    });
+});
 // Serve the frontend
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
